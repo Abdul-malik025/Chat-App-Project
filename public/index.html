@@ -7,7 +7,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="chat-container">
+    <div id="usernameContainer">
+        <h2>Enter Your Username</h2>
+        <input id="usernameInput" type="text" placeholder="Enter username">
+        <button onclick="setUsername()">Join Chat</button>
+    </div>
+
+    <div id="chat-container" style="display: none;">
         <h2>Simple Chat</h2>
         <ul id="messages"></ul>
         <input id="messageInput" type="text" placeholder="Type a message...">
@@ -17,19 +23,40 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let username = "";
+
+        function setUsername() {
+            const input = document.getElementById("usernameInput").value.trim();
+            if (input) {
+                username = input;
+                document.getElementById("usernameContainer").style.display = "none";
+                document.getElementById("chat-container").style.display = "block";
+            } else {
+                alert("Please enter a username.");
+            }
+        }
 
         function sendMessage() {
             const input = document.getElementById("messageInput");
             const message = input.value.trim();
             if (message) {
-                socket.emit("chat message", message);
+                socket.emit("chat message", { username, message });
                 input.value = "";
             }
         }
 
-        socket.on("chat message", (msg) => {
+        socket.on("chat history", (messages) => {
+            const messageList = document.getElementById("messages");
+            messages.forEach(({ username, message }) => {
+                const li = document.createElement("li");
+                li.innerHTML = `<strong>${username}:</strong> ${message}`;
+                messageList.appendChild(li);
+            });
+        });
+
+        socket.on("chat message", (data) => {
             const li = document.createElement("li");
-            li.textContent = msg;
+            li.innerHTML = `<strong>${data.username}:</strong>${data.message}`;
             document.getElementById("messages").appendChild(li);
         });
     </script>
