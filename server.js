@@ -1,21 +1,48 @@
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
+const mysql = require("mysql2");
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// MySQL Database Connection
+const db = mysql.createConnection({
+    host: "localhost",
+    user: "root",  // Change if needed
+    password: "",  // Add your password
+    database: "chatapp",
+});
+
+db.connect((err) => {
+    if (err) throw err;
+    console.log("MySQL Connected...");
+});
+
 // Serve static files from 'public' folder
 app.use(express.static("public"));
 
-// Listen for new connections
+// Load chat history on user connection
 io.on("connection", (socket) => {
     console.log("A user connected");
 
-    // Listen for chat messages from clients
-    socket.on("chat message", (msg) => {
-        io.emit("chat message", msg); // Broadcast message to all users
+    // Fetch chat history from the database
+    db.query("SELECT * FROM messages ORDER BY timestamp ASC", (err, results) => {
+        if (err) throw err;
+        socket.emit("chat history", results);
+    });
+
+    // Listen for chat messages
+    socket.on("chat message", (data) => {
+        const { username, message } = data;
+
+        // Save message to MySQL
+        const query = "INSERT INTO messages (username, message) VALUES (?, ?)";
+        db.query(query, [username, message], (err, result) => {
+            if (err) throw err;
+            io.emit("chat message", { username, message }); // Broadcast message
+        });
     });
 
     socket.on("disconnect", () => {
