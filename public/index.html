@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="authContainer">
+        <h2>Register</h2>
+        <input id="usernameInput" type="text" placeholder="Enter username">
+        <input id="passwordInput" type="password" placeholder="Enter password">
+        <button onclick="registerUser()">Register</button>
+        <h2>OR</h2>
+        <h2>Login</h2>
+        <input id="loginUsernameInput" type="text" placeholder="Enter username">
+        <input id="loginPasswordInput" type="password" placeholder="Enter password">
+        <button onclick="loginUser()">Login</button>
+    </div>
+
+    <div id="chat-container" style="display: none;">
+        <h2>Simple Chat</h2>
+        <ul id="messages"></ul>
+        <input id="messageInput" type="text" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+        const socket = io();
+let username = "";
+
+// Register User
+function registerUser() {
+    const username = document.getElementById("usernameInput").value.trim();
+    const password = document.getElementById("passwordInput").value.trim();
+
+    if (username && password) {
+        fetch("/register", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, password }),
+        })
+        .then((response) => response.text())
+        .then((data) => {
+            alert(data);
+        })
+        .catch((error) => console.error("Error:", error));
+    } else {
+        alert("Please fill in all fields.");
+    }
+}
+
+// Login User
+function loginUser() {
+    const username = document.getElementById("loginUsernameInput").value.trim();
+    const password = document.getElementById("loginPasswordInput").value.trim();
+
+    if (username && password) {
+        fetch("/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, password }),
+        })
+        .then((response) => response.text())
+        .then((data) => {
+            if (data === "Login successful!") {
+                document.getElementById("authContainer").style.display = "none";
+                document.getElementById("chat-container").style.display = "block";
+                username = username;
+            } else {
+                alert(data);
+            }
+        })
+        .catch((error) => console.error("Error:", error));
+    } else {
+        alert("Please fill in all fields.");
+    }
+}
+
+// Send message
+function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const message = input.value.trim();
+    if (message) {
+        socket.emit("chat message", { username, message });
+        input.value = "";
+    }
+}
+
+// Display chat history
+socket.on("chat history", (messages) => {
+    const messageList = document.getElementById("messages");
+    messages.forEach(({ username, message }) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${username}:</strong> ${message}`;
+        messageList.appendChild(li);
+    });
+});
+
+// Display new messages
+socket.on("chat message", (data) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+    document.getElementById("messages").appendChild(li);
+});
+
+
+    </script>
+</body>
+</html>
