@@ -73,7 +73,7 @@ function loginUser() {
             if (data === "Login successful!") {
                 document.getElementById("authContainer").style.display = "none";
                 document.getElementById("chat-container").style.display = "block";
-                username = username;
+                username = data.username;
             } else {
                 alert(data);
             }

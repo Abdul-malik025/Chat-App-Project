@@ -13,7 +13,7 @@ const io = socketIo(server);
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",  
-    password: "",  
+    password: "0556614768",  
     database: "chatapp",
 });
 
@@ -80,6 +80,10 @@ app.post("/login", (req, res) => {
             // Save user info in session
             req.session.user = { username: user.username };
             res.status(200).send("Login successful!");
+            
+            
+
+            
         });
     });
 });
