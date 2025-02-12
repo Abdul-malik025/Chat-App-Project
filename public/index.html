@@ -2,118 +2,309 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chat App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DevsChat</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="authContainer">
-    <h2>Register</h2>
-    <label for="usernameInput">Username:</label>
-    <input id="usernameInput" type="text" placeholder="Enter username" />
-    <label for="passwordInput">Password:</label>
-    <input id="passwordInput" type="password" placeholder="Enter password" />
-    <button onclick="registerUser()">Register</button>
-    <hr />
-    <h2>Login</h2>
-    <label for="loginUsernameInput">Username:</label>
-    <input id="loginUsernameInput" type="text" placeholder="Enter username" />
-    <label for="loginPasswordInput">Password:</label>
-    <input id="loginPasswordInput" type="password" placeholder="Enter password" />
-    <button onclick="loginUser()">Login</button>
+  <!-- ===== AUTH SCREEN (Login/Signup) ===== -->
+  <div class="background" id="authContainer">
+    <div class="chat-bubble">
+      <span>DevsChat</span>
+    </div>
+    <div class="auth-container">
+      <!-- Login Card -->
+      <div class="auth-card" id="loginCard">
+        <h2>Login</h2>
+        <form onsubmit="event.preventDefault(); loginUser();">
+          <div class="input-group">
+            <label for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter username" />
+          </div>
+          <div class="input-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" />
+          </div>
+          <button type="submit" class="auth-btn">Sign In</button>
+          <a href="#" class="forgot-link">Forgot your password?</a>
+        </form>
+        <p class="switch-link">
+          Don't have an account?
+          <a href="#" onclick="showSignup()">Sign Up</a>
+        </p>
+      </div>
+
+      <!-- Signup Card (hidden by default) -->
+      <div class="auth-card" id="signupCard" style="display: none;">
+        <h2>Sign Up</h2>
+        <form onsubmit="event.preventDefault(); registerUser();">
+          <div class="input-group">
+            <label for="signupUsername">Username</label>
+            <input type="text" id="signupUsername" placeholder="Choose a username" />
+          </div>
+          <div class="input-group">
+            <label for="signupPassword">Password</label>
+            <input type="password" id="signupPassword" placeholder="Create a password" />
+          </div>
+          <button type="submit" class="auth-btn">Register</button>
+        </form>
+        <p class="switch-link">
+          Already have an account?
+          <a href="#" onclick="showLogin()">Login</a>
+        </p>
+      </div>
+    </div>
   </div>
 
-  <div id="chat-container" style="display: none;">
-    <h2>Simple Chat</h2>
-    <ul id="messages"></ul>
-    <input id="messageInput" type="text" placeholder="Type a message..." />
-    <button onclick="sendMessage()">Send</button>
+  <!-- ===== ROOM SELECTION SCREEN ===== -->
+  <div id="roomContainer" class="container" style="display: none;">
+    <div class="room-card">
+      <h2>Select a Room</h2>
+      <div class="create-room">
+        <input id="newRoomInput" type="text" placeholder="Enter new room name" />
+        <button onclick="createRoom()">Create Room</button>
+      </div>
+      <h3>Or join an existing room:</h3>
+      <ul id="roomList"></ul>
+      <button class="logout-button" onclick="logoutUser()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ===== FULL-SCREEN CHAT SCREEN ===== -->
+ 
+  <div id="chatContainer" style="display: none;">
+    <div class="chat-card">
+      <div class="chat-header">
+        <h2>Room: <span id="roomNameDisplay"></span></h2>
+        <div class="header-buttons">
+          <button class="back-button" onclick="backToRoomSelection()">Back</button>
+          <button class="logout-button" onclick="logoutUser()">Logout</button>
+          <!-- New Toggle Button -->
+          <button class="mode-toggle" onclick="toggleDarkMode()">Toggle Mode</button>
+        </div>
+      </div>
+      <ul id="messages"></ul>
+      <div class="chat-input">
+        <input id="messageInput" type="text" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     let username = "";
+    let currentRoom = "";
 
-    // Register User
-    function registerUser() {
-      const regUsername = document.getElementById("usernameInput").value.trim();
-      const regPassword = document.getElementById("passwordInput").value.trim();
-
-      if (regUsername && regPassword) {
-        fetch("/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username: regUsername, password: regPassword }),
+    // On page load, check if a session is active
+    window.onload = function() {
+      fetch("/me")
+        .then(response => response.json())
+        .then(data => {
+          if (data.loggedIn) {
+            username = data.user.username;
+            document.getElementById("authContainer").style.display = "none";
+            document.getElementById("roomContainer").style.display = "block";
+            fetchRooms();
+          }
         })
-          .then((response) => response.json())
-          .then((data) => {
-            alert(data.message);
-          })
-          .catch((error) => console.error("Error:", error));
-      } else {
-        alert("Please fill in all fields.");
-      }
+        .catch(err => console.error("Error checking session:", err));
+    };
+
+    /* ----- SOCKET.IO EVENTS ----- */
+    socket.on("connect", () => console.log("Connected to server"));
+    socket.on("disconnect", () => console.log("Disconnected from server"));
+
+    socket.on("joined room", roomName => {
+      console.log("Successfully joined room:", roomName);
+    });
+
+    socket.on("chat history", messages => {
+      console.log("Received chat history:", messages);
+      const messageList = document.getElementById("messages");
+      messageList.innerHTML = "";
+      messages.forEach(({ username, message }) => {
+        appendMessage(username, message);
+      });
+    });
+
+    socket.on("chat message", data => {
+      console.log("Received new chat message:", data);
+      appendMessage(data.username, data.message);
+    });
+
+
+     // Dark/Light Mode Toggle Functionality
+  function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+    // Store the user's preference in localStorage
+    if (document.body.classList.contains("dark-mode")) {
+      localStorage.setItem("theme", "dark");
+    } else {
+      localStorage.setItem("theme", "light");
+    }
+  }
+
+  // On page load, check localStorage for the theme preference
+  window.addEventListener("load", () => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.body.classList.add("dark-mode");
+    }
+  });
+
+    /* ----- LOGIN/SIGNUP FUNCTIONS ----- */
+    function showSignup() {
+      document.getElementById("loginCard").style.display = "none";
+      document.getElementById("signupCard").style.display = "block";
     }
 
-    // Login User
-    function loginUser() {
-      const loginUsername = document.getElementById("loginUsernameInput").value.trim();
-      const loginPassword = document.getElementById("loginPasswordInput").value.trim();
+    function showLogin() {
+      document.getElementById("signupCard").style.display = "none";
+      document.getElementById("loginCard").style.display = "block";
+    }
 
+    function loginUser() {
+      const loginUsername = document.getElementById("loginUsername").value.trim();
+      const loginPassword = document.getElementById("loginPassword").value.trim();
       if (loginUsername && loginPassword) {
         fetch("/login", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: loginUsername, password: loginPassword })
         })
-          .then((response) => response.json())
-          .then((data) => {
+          .then(response => response.json())
+          .then(data => {
             if (data.message === "Login successful!") {
-              document.getElementById("authContainer").style.display = "none";
-              document.getElementById("chat-container").style.display = "block";
               username = loginUsername;
+              document.getElementById("authContainer").style.display = "none";
+              document.getElementById("roomContainer").style.display = "block";
+              fetchRooms();
             } else {
               alert(data.message);
             }
           })
-          .catch((error) => console.error("Error:", error));
+          .catch(error => console.error("Error:", error));
       } else {
         alert("Please fill in all fields.");
       }
     }
 
-    // Send message
+    function registerUser() {
+      const regUsername = document.getElementById("signupUsername").value.trim();
+      const regPassword = document.getElementById("signupPassword").value.trim();
+      if (regUsername && regPassword) {
+        fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: regUsername, password: regPassword })
+        })
+          .then(response => response.json())
+          .then(data => {
+            alert(data.message);
+            if (data.message === "Registration successful!") {
+              showLogin();
+            }
+          })
+          .catch(error => console.error("Error:", error));
+      } else {
+        alert("Please fill in all fields.");
+      }
+    }
+
+    function logoutUser() {
+      fetch("/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          username = "";
+          currentRoom = "";
+          location.reload();  // Destroy session and reload page
+        })
+        .catch(error => console.error("Logout error:", error));
+    }
+
+    /* ----- ROOM SELECTION FUNCTIONS ----- */
+    function fetchRooms() {
+      fetch("/rooms")
+        .then(response => response.json())
+        .then(data => {
+          const roomList = document.getElementById("roomList");
+          roomList.innerHTML = "";
+          data.rooms.forEach(room => {
+            const li = document.createElement("li");
+            li.textContent = room;
+            li.className = "room-item";
+            li.onclick = () => joinRoom(room);
+            roomList.appendChild(li);
+          });
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    function createRoom() {
+      const newRoom = document.getElementById("newRoomInput").value.trim();
+      if (!newRoom) {
+        alert("Please enter a room name.");
+        return;
+      }
+      fetch("/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room_name: newRoom })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.message === "Room created successfully!") {
+            joinRoom(newRoom);
+          } else {
+            alert(data.message);
+          }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    function joinRoom(room) {
+      currentRoom = room;
+      socket.emit("join room", room);
+      document.getElementById("roomContainer").style.display = "none";
+      document.getElementById("chatContainer").style.display = "flex";
+      document.getElementById("roomNameDisplay").textContent = room;
+      document.getElementById("messages").innerHTML = "";
+    }
+
+    function backToRoomSelection() {
+      location.reload();  // Reload page to return to room selection
+    }
+
+    /* ----- CHAT FUNCTIONS ----- */
     function sendMessage() {
       const input = document.getElementById("messageInput");
       const message = input.value.trim();
-      if (message) {
-        socket.emit("chat message", { username, message });
+      if (message && currentRoom) {
+        socket.emit("chat message", { username, message, room: currentRoom });
         input.value = "";
       }
     }
 
-    // Display chat history
-    socket.on("chat history", (messages) => {
-      const messageList = document.getElementById("messages");
-      messageList.innerHTML = ""; // Clear existing messages
-      messages.forEach(({ username, message }) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<strong>${username}:</strong> ${message}`;
-        messageList.appendChild(li);
-      });
-    });
-
-    // Display new messages
-    socket.on("chat message", (data) => {
+    function appendMessage(sender, text) {
       const li = document.createElement("li");
-      li.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+      li.classList.add("message");
+      // Apply different styles based on sender
+      if (sender === username) {
+        li.classList.add("mine");
+      } else {
+        li.classList.add("theirs");
+      }
+      li.innerHTML = `<div class="sender">${sender}</div><div class="text">${text}</div>`;
       document.getElementById("messages").appendChild(li);
-    });
+      // Auto-scroll to the bottom
+      document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+    }
   </script>
 </body>
 </html>
