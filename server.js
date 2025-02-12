@@ -5,6 +5,8 @@ const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
 const session = require("express-session");
 //const MySQLStore = require("express-mysql-session")(session);
+const multer = require("multer");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
@@ -32,7 +34,7 @@ db.connect(err => {
   console.log("MySQL Connected...");
 });
 
-//we will uncomment during production
+//  MySQL session store
 //const sessionStore = new MySQLStore({}, db.promise());
 
 // Middleware for parsing JSON and URL-encoded bodies
@@ -59,12 +61,45 @@ app.use(
 app.use(express.static("public"));
 
 /* ---------------------------
+   FILE UPLOAD SETUP (Multer)
+---------------------------- */
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "public/uploads/");
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + "-" + uniqueSuffix + ext);
+  },
+});
+const upload = multer({ storage: storage });
+
+// File upload endpoint
+app.post("/upload", upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded." });
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  let mediaType = "";
+  if (req.file.mimetype.startsWith("image/")) {
+    mediaType = "image";
+  } else if (req.file.mimetype.startsWith("video/")) {
+    mediaType = "video";
+  } else {
+    mediaType = "file";
+  }
+  return res.status(200).json({ message: "File uploaded successfully!", fileUrl, mediaType });
+});
+
+/* ---------------------------
    AUTHENTICATION ENDPOINTS
 ---------------------------- */
 // Registration endpoint
 app.post("/register", (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: "Username and password are required." });
+  if (!username || !password)
+    return res.status(400).json({ message: "Username and password are required." });
   
   const checkQuery = "SELECT * FROM users WHERE username = ?";
   db.query(checkQuery, [username], (err, results) => {
@@ -95,7 +130,8 @@ app.post("/register", (req, res) => {
 // Login endpoint
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: "Username and password are required." });
+  if (!username || !password)
+    return res.status(400).json({ message: "Username and password are required." });
   
   const query = "SELECT * FROM users WHERE username = ?";
   db.query(query, [username], (err, results) => {
@@ -103,10 +139,12 @@ app.post("/login", (req, res) => {
       console.error(err);
       return res.status(500).json({ message: "Database error." });
     }
-    if (results.length === 0) return res.status(401).json({ message: "User not found." });
+    if (results.length === 0)
+      return res.status(401).json({ message: "User not found." });
     const user = results[0];
     bcrypt.compare(password, user.password, (err, match) => {
-      if (err || !match) return res.status(401).json({ message: "Incorrect password." });
+      if (err || !match)
+        return res.status(401).json({ message: "Incorrect password." });
       req.session.user = { username: user.username };
       return res.status(200).json({ message: "Login successful!", username: user.username });
     });
@@ -127,7 +165,8 @@ app.post("/logout", (req, res) => {
 
 // Check session endpoint
 app.get("/me", (req, res) => {
-  if (req.session.user) return res.status(200).json({ loggedIn: true, user: req.session.user });
+  if (req.session.user)
+    return res.status(200).json({ loggedIn: true, user: req.session.user });
   return res.status(200).json({ loggedIn: false });
 });
 
@@ -150,7 +189,8 @@ app.get("/rooms", (req, res) => {
 // Create a new room
 app.post("/rooms", (req, res) => {
   const { room_name } = req.body;
-  if (!room_name) return res.status(400).json({ message: "Room name is required." });
+  if (!room_name)
+    return res.status(400).json({ message: "Room name is required." });
   
   const checkQuery = "SELECT * FROM rooms WHERE room_name = ?";
   db.query(checkQuery, [room_name], (err, results) => {
@@ -158,9 +198,9 @@ app.post("/rooms", (req, res) => {
       console.error(err);
       return res.status(500).json({ message: "Database error." });
     }
-    if (results.length > 0) return res.status(409).json({ message: "Room already exists." });
+    if (results.length > 0)
+      return res.status(409).json({ message: "Room already exists." });
     
-    // Use the logged-in user as creator, or "anonymous" if not set
     const created_by = req.session && req.session.user ? req.session.user.username : "anonymous";
     const query = "INSERT INTO rooms (room_name, created_by) VALUES (?, ?)";
     db.query(query, [room_name, created_by], (err, result) => {
@@ -196,17 +236,29 @@ io.on("connection", socket => {
 
   // Handle incoming chat messages
   socket.on("chat message", data => {
-    const { username, message, room } = data;
-    if (!username || !message || !room) return;
-    const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
-    db.query(query, [room, username, message], (err, result) => {
-      if (err) {
-        console.error("Error saving message:", err);
-        return;
-      }
-      // Broadcast the message to everyone in the same room
-      io.to(room).emit("chat message", { username, message });
-    });
+    const { username, message, room, media, mediaType } = data;
+    // Either text or media must be provided.
+    if (!username || (!message && !media) || !room) return;
+    if (media) {
+      const query =
+        "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
+      db.query(query, [room, username, message || "", media, mediaType], (err, result) => {
+        if (err) {
+          console.error("Error saving media message:", err);
+          return;
+        }
+        io.to(room).emit("chat message", { username, message, media, mediaType });
+      });
+    } else {
+      const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
+      db.query(query, [room, username, message], (err, result) => {
+        if (err) {
+          console.error("Error saving message:", err);
+          return;
+        }
+        io.to(room).emit("chat message", { username, message });
+      });
+    }
   });
 
   socket.on("disconnect", () => {
