@@ -16,7 +16,7 @@ const io = socketIo(server);
 const SESSION_SECRET = process.env.SESSION_SECRET || "chatapp_secret";
 const DB_HOST = process.env.DB_HOST || "localhost";
 const DB_USER = process.env.DB_USER || "root";
-const DB_PASSWORD = process.env.DB_PASSWORD || "";
+const DB_PASSWORD = process.env.DB_PASSWORD || "0556614768";
 const DB_DATABASE = process.env.DB_DATABASE || "chatapp";
 
 // MySQL Database Connection
