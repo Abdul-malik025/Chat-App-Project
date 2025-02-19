@@ -13,21 +13,25 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 // Configuration (or use process.env)
-/* const SESSION_SECRET = process.env.SESSION_SECRET || "chatapp_secret";
-const DB_HOST = process.env.DB_HOST || "localhost";
-const DB_USER = process.env.DB_USER || "root";
-const DB_PASSWORD = process.env.DB_PASSWORD || "0556614768";
-const DB_DATABASE = process.env.DB_DATABASE || "chatapp";
- */
-// MySQL Database Connection
-const connection = mysql.createConnection(process.env.DATABASE_URL);
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const DB_HOST = process.env.DB_HOST ;
+const DB_USER = process.env.DB_USER;
+const DB_PASSWORD = process.env.DB_PASSWORD ;
+const DB_DATABASE = process.env.DB_DATABASE;
 
-connection.connect(err => {
+// MySQL Database Connection
+const db = mysql.createConnection({
+  host: DB_HOST,
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_DATABASE,
+});
+db.connect(err => {
   if (err) {
     console.error("MySQL connection error:", err);
     process.exit(1);
   }
-  console.log("Connected to MySQL");
+  console.log("MySQL Connected...");
 });
 
 // Optional: Use MySQL session store for production
