@@ -179,45 +179,41 @@ app.get("/rooms", (req, res) => {
 
 // Create a new room
 app.post("/rooms", (req, res) => {
+  console.log("Session data:", req.session); // Debugging line
+
   const { room_name } = req.body;
-  if (!room_name)
+  if (!room_name) {
     return res.status(400).json({ message: "Room name is required." });
+  }
 
-  const created_by = req.session?.user?.username || "anonymous";
+  const created_by = req.session?.user?.username;
+  if (!created_by) {
+    return res.status(401).json({ message: "You must be logged in to create a room." });
+  }
 
-  // Check if the user exists in the users table before inserting a room
+  console.log("Creating room by user:", created_by); // Debugging line
+
+  // Check if the user exists in the database
   const checkUserQuery = "SELECT * FROM users WHERE username = ?";
   db.query(checkUserQuery, [created_by], (err, userResults) => {
     if (err) {
-      console.error(err);
+      console.error("Database error:", err);
       return res.status(500).json({ message: "Database error." });
     }
 
-    // If user doesn't exist, return an error
     if (userResults.length === 0) {
+      console.error(`User ${created_by} does not exist in users table.`);
       return res.status(400).json({ message: "User does not exist. Please log in." });
     }
 
-    // Proceed with room creation if user exists
-    const checkRoomQuery = "SELECT * FROM rooms WHERE room_name = ?";
-    db.query(checkRoomQuery, [room_name], (err, roomResults) => {
+    // Proceed to create the room
+    const insertRoomQuery = "INSERT INTO rooms (room_name, created_by) VALUES (?, ?)";
+    db.query(insertRoomQuery, [room_name, created_by], (err, result) => {
       if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Database error." });
+        console.error("Error creating room:", err);
+        return res.status(500).json({ message: "Error creating room." });
       }
-
-      if (roomResults.length > 0) {
-        return res.status(409).json({ message: "Room already exists." });
-      }
-
-      const insertRoomQuery = "INSERT INTO rooms (room_name, created_by) VALUES (?, ?)";
-      db.query(insertRoomQuery, [room_name, created_by], (err, result) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ message: "Error creating room." });
-        }
-        res.status(200).json({ message: "Room created successfully!", room_name });
-      });
+      res.status(200).json({ message: "Room created successfully!", room_name });
     });
   });
 });
