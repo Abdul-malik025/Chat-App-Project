@@ -180,10 +180,19 @@ app.get("/rooms", (req, res) => {
 });
 
 // Create a new room
+
 app.post("/rooms", (req, res) => {
   const { room_name } = req.body;
   if (!room_name)
     return res.status(400).json({ message: "Room name is required." });
+
+  // Ensure the user is logged in
+  if (!req.session.user) {
+    return res.status(401).json({ message: "You must be logged in to create a room." });
+  }
+
+  const created_by = req.session.user.username; // Always use logged-in user
+
   const checkQuery = "SELECT * FROM rooms WHERE room_name = ?";
   db.query(checkQuery, [room_name], (err, results) => {
     if (err) {
@@ -192,7 +201,7 @@ app.post("/rooms", (req, res) => {
     }
     if (results.length > 0)
       return res.status(409).json({ message: "Room already exists." });
-    const created_by = req.session && req.session.user ? req.session.user.username : "anonymous";
+
     const query = "INSERT INTO rooms (room_name, created_by) VALUES (?, ?)";
     db.query(query, [room_name, created_by], (err, result) => {
       if (err) {
