@@ -13,11 +13,11 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 // Configuration (or use process.env)
-const SESSION_SECRET = process.env.SESSION_SECRET;
-const DB_HOST = process.env.DB_HOST ;
-const DB_USER = process.env.DB_USER;
-const DB_PASSWORD = process.env.DB_PASSWORD ;
-const DB_DATABASE = process.env.DB_DATABASE;
+const SESSION_SECRET = process.env.SESSION_SECRET || "chatapp_secret";
+const DB_HOST = process.env.DB_HOST ||  "06cxd.h.filess.io";
+const DB_USER = process.env.DB_USER || "JMJ_thesejack";
+const DB_PASSWORD = process.env.DB_PASSWORD || "51a596ef599afc0fd900c696d54f7777773e855c";
+const DB_DATABASE = process.env.DB_DATABASE || "JMJ_thesejack";
 
 // MySQL Database Connection
 const db = mysql.createConnection({
@@ -50,7 +50,7 @@ app.use(
     saveUninitialized: false,
     //store: sessionStore,
     cookie: {
-      secure: false, // set true with HTTPS
+      secure: true, // set true with HTTPS
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
