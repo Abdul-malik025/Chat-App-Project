@@ -7,6 +7,7 @@ const session = require("express-session");
 const MySQLStore = require("express-mysql-session")(session);
 const multer = require("multer");
 const path = require("path");
+const cookieParser = require("cookie-parser");
 
 const app = express();
 const server = http.createServer(app);
@@ -30,17 +31,21 @@ const sessionStore = new MySQLStore({}, db.promise());
 // Middleware for parsing bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.set("trust proxy", 1); // ✅ Required for sessions to work on Render
+
 
 // Session setup
+
+
+app.use(cookieParser());
 app.use(
   session({
     key: "chatapp_session",
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: sessionStore,
     cookie: {
-      secure: true, // set true with HTTPS
+      secure: process.env.NODE_ENV === "production",
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
