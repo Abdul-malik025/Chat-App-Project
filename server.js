@@ -12,26 +12,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Configuration (or use process.env)
-const SESSION_SECRET = process.env.SESSION_SECRET || "chatapp_secret";
-const DB_HOST = process.env.DB_HOST ||  "xlfqu.h.filess.io";
-const DB_USER = process.env.DB_USER || "JMJ_structure";
-const DB_PASSWORD = process.env.DB_PASSWORD || "6715ca0067dfaaee9ec452ce17b0f2065aed8d5f";
-const DB_DATABASE = process.env.DB_DATABASE || "JMJ_structure";
+const db = mysql.createConnection("mysql://JMJ_structure:6715ca0067dfaaee9ec452ce17b0f2065aed8d5f@xlfqu.h.filess.io:3307/JMJ_structure");
 
-// MySQL Database Connection
-const db = mysql.createConnection({
-  host: DB_HOST,
-  user: DB_USER,
-  password: DB_PASSWORD,
-  database: DB_DATABASE,
-});
 db.connect(err => {
   if (err) {
     console.error("MySQL connection error:", err);
     process.exit(1);
   }
-  console.log("MySQL Connected...");
+  console.log("Connected to MySQL");
 });
 
 // Optional: Use MySQL session store for production
