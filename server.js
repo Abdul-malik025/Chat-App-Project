@@ -4,7 +4,7 @@ const socketIo = require("socket.io");
 const mysql = require("mysql2");
 const bcrypt = require('bcryptjs');
 const session = require("express-session");
-//const MySQLStore = require("express-mysql-session")(session);
+const MySQLStore = require("express-mysql-session")(session);
 const multer = require("multer");
 const path = require("path");
 
@@ -23,7 +23,7 @@ db.connect(err => {
 });
 
 // Optional: Use MySQL session store for production
-//const sessionStore = new MySQLStore({}, db.promise());
+const sessionStore = new MySQLStore({}, db.promise());
 
 // Middleware for parsing bodies
 app.use(express.json());
@@ -36,7 +36,7 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    //store: sessionStore,
+    store: sessionStore,
     cookie: {
       secure: true, // set true with HTTPS
       httpOnly: true,
