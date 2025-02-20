@@ -22,6 +22,8 @@ db.connect(err => {
   console.log("Connected to MySQL");
 });
 
+const SESSION_SECRET = "chatapp";
+
 // Optional: Use MySQL session store for production
 const sessionStore = new MySQLStore({}, db.promise());
 
