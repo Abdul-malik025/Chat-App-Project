@@ -14,10 +14,10 @@ const io = socketIo(server);
 
 // Configuration (or use process.env)
 const SESSION_SECRET = process.env.SESSION_SECRET || "chatapp_secret";
-const DB_HOST = process.env.DB_HOST ||  "06cxd.h.filess.io";
-const DB_USER = process.env.DB_USER || "JMJ_thesejack";
-const DB_PASSWORD = process.env.DB_PASSWORD || "51a596ef599afc0fd900c696d54f7777773e855c";
-const DB_DATABASE = process.env.DB_DATABASE || "JMJ_thesejack";
+const DB_HOST = process.env.DB_HOST ||  "xlfqu.h.filess.io";
+const DB_USER = process.env.DB_USER || "JMJ_structure";
+const DB_PASSWORD = process.env.DB_PASSWORD || "6715ca0067dfaaee9ec452ce17b0f2065aed8d5f";
+const DB_DATABASE = process.env.DB_DATABASE || "JMJ_structure";
 
 // MySQL Database Connection
 const db = mysql.createConnection({
