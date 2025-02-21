@@ -5,6 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chat App</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Additional styling for the join room modal -->
+  <style>
+    /* Modal overlay for entering room code when joining a room */
+    #joinRoomModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none; /* Hidden by default */
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #joinRoomModal .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      width: 80%;
+      max-width: 300px;
+      text-align: center;
+    }
+    #joinRoomModal .modal-content h2 {
+      margin-bottom: 15px;
+      font-size: 18px;
+      color: #333;
+    }
+    #joinRoomModal .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    #joinRoomModal .modal-content button {
+      padding: 10px 20px;
+      background: #40b3ff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #joinRoomModal .modal-content button:hover {
+      background: #1d9bee;
+    }
+  </style>
 </head>
 <body>
   <!-- ===== AUTH SCREEN (Login/Signup) ===== -->
@@ -62,8 +111,8 @@
       <h2>Select a Room</h2>
       <div class="create-room">
         <input id="newRoomInput" type="text" placeholder="Enter new room name" />
-        <!-- New input field for an optional room code -->
-        <input id="newRoomCode" type="text" placeholder="Enter room code (optional)" />
+        <!-- New input field for room code; it is now required -->
+        <input id="newRoomCode" type="text" placeholder="Enter room code" />
         <button onclick="createRoom()">Create Room</button>
       </div>
       <h3>Or join an existing room:</h3>
@@ -107,11 +156,21 @@
     </div>
   </div>
 
+  <!-- ===== JOIN ROOM CODE MODAL ===== -->
+  <div id="joinRoomModal">
+    <div class="modal-content">
+      <h2>Enter Room Code</h2>
+      <input type="text" id="joinRoomCodeInput" placeholder="Enter room code" />
+      <button onclick="submitJoinRoomCode()">Join Room</button>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
     let username = "";
     let currentRoom = "";
+    let currentRoomCandidate = "";
     let roomAdmin = ""; // Store the room creator's username
 
     // Check session and apply saved theme on load
@@ -136,11 +195,6 @@
     /* ----- SOCKET.IO EVENTS ----- */
     socket.on("connect", () => console.log("Connected to server"));
     socket.on("disconnect", () => console.log("Disconnected from server"));
-
-    // Handle room join errors (e.g. incorrect room code)
-    socket.on("join error", errorMsg => {
-      alert(errorMsg);
-    });
 
     socket.on("joined room", roomName => {
       console.log("Successfully joined room:", roomName);
@@ -274,6 +328,10 @@
         alert("Please enter a room name.");
         return;
       }
+      if (!roomCode) {
+        alert("Room code is required.");
+        return;
+      }
       fetch("/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +340,14 @@
         .then(response => response.json())
         .then(data => {
           if (data.message === "Room created successfully!") {
-            joinRoom(newRoom);
+            // After creating, force the user to join using the same room code.
+            currentRoom = newRoom;
+            socket.emit("join room", { roomName: newRoom, code: roomCode });
+            document.getElementById("roomContainer").style.display = "none";
+            document.getElementById("chatContainer").style.display = "flex";
+            document.getElementById("roomNameDisplay").textContent = newRoom;
+            document.getElementById("messages").innerHTML = "";
+            fetchRoomAdmin();
           } else {
             alert(data.message);
           }
@@ -290,14 +355,26 @@
         .catch(error => console.error("Error:", error));
     }
 
+    // When a user clicks a room in the list, show the modal to force them to enter a room code
     function joinRoom(room) {
-      // Prompt the user for a room code if needed
-      let code = prompt("Enter room code if required (leave blank otherwise):");
-      currentRoom = room;
-      socket.emit("join room", { roomName: room, code: code });
+      currentRoomCandidate = room;
+      document.getElementById("joinRoomCodeInput").value = "";
+      document.getElementById("joinRoomModal").style.display = "flex";
+    }
+
+    // Called when the user clicks "Join Room" in the modal
+    function submitJoinRoomCode() {
+      const code = document.getElementById("joinRoomCodeInput").value.trim();
+      if (!code) {
+        alert("Room code is required.");
+        return;
+      }
+      currentRoom = currentRoomCandidate;
+      socket.emit("join room", { roomName: currentRoom, code: code });
+      document.getElementById("joinRoomModal").style.display = "none";
       document.getElementById("roomContainer").style.display = "none";
       document.getElementById("chatContainer").style.display = "flex";
-      document.getElementById("roomNameDisplay").textContent = room;
+      document.getElementById("roomNameDisplay").textContent = currentRoom;
       document.getElementById("messages").innerHTML = "";
       fetchRoomAdmin();
     }
