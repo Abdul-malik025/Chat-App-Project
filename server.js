@@ -7,7 +7,8 @@ const session = require("express-session");
 const MySQLStore = require("express-mysql-session")(session);
 const multer = require("multer");
 const path = require("path");
-
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
@@ -251,6 +252,80 @@ app.get("/roomAdmin", (req, res) => {
     return res.status(200).json({ created_by: results[0].created_by });
   });
 });
+
+
+
+
+// Configure the transporter (update with your SMTP details)
+const transporter = nodemailer.createTransport({
+  host: "smtp.office365.com",
+  port: 587,
+  secure: false, // use TLS
+  auth: {
+    user: "jerry_2044@outlook.com", // your Outlook email address
+    pass: "ilovemymom12345"             // your Outlook email password or app-specific password
+  },
+  tls: {
+    ciphers: "SSLv3"
+  }
+});
+// Password reset request endpoint
+app.post("/reset-password-request", (req, res) => {
+  const { username } = req.body; // assume username holds the user's email address
+  if (!username)
+    return res.status(400).json({ message: "Username (email) is required." });
+
+  // Check if the user exists.
+  const query = "SELECT * FROM users WHERE username = ?";
+  db.query(query, [username], (err, results) => {
+    if (err) {
+      console.error("DB error:", err);
+      return res.status(500).json({ message: "Database error." });
+    }
+    if (results.length === 0)
+      return res.status(404).json({ message: "User not found." });
+
+    const user = results[0];
+    // Generate a token and set expiry (1 hour from now)
+    const token = crypto.randomBytes(20).toString("hex");
+    const expires = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Update the user record with the token and expiry.
+    const updateQuery = "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE username = ?";
+    db.query(updateQuery, [token, expires, username], (err, result) => {
+      if (err) {
+        console.error("DB error:", err);
+        return res.status(500).json({ message: "Database error." });
+      }
+      
+      // Construct the reset link (update with your domain)
+      const resetLink = `https://chat-app-project-lj99.onrender.com/reset-password?token=${token}`;
+      
+      // Prepare the email options
+      const mailOptions = {
+        from: '"ChatApp Support" <jerry_2044@outlook.com>',
+        to: user.email || username, // if you store email in a dedicated field use user.email; otherwise, username
+        subject: 'Password Reset Request',
+        text: `You have requested a password reset. Please click on the following link to reset your password: ${resetLink}. This link is valid for 1 hour.`,
+        html: `<p>You have requested a password reset.</p>
+               <p>Please click on the link below to reset your password:</p>
+               <p><a href="${resetLink}">${resetLink}</a></p>
+               <p>This link is valid for 1 hour.</p>`
+      };
+
+      // Send the email
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error('Error sending email:', error);
+          return res.status(500).json({ message: "Error sending email." });
+        }
+        console.log('Password reset email sent:', info.response);
+        return res.status(200).json({ message: "Password reset email has been sent." });
+      });
+    });
+  });
+});
+
 
 //////////////////////////////
 // SOCKET.IO HANDLING
