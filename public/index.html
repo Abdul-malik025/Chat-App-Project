@@ -196,8 +196,21 @@
     socket.on("connect", () => console.log("Connected to server"));
     socket.on("disconnect", () => console.log("Disconnected from server"));
 
+    // If the room code is incorrect, the server emits "join error"
+    socket.on("join error", errorMsg => {
+      alert(errorMsg);
+      // Keep the modal open so the user can try again.
+    });
+
+    // Only when the server confirms joining does the UI update.
     socket.on("joined room", roomName => {
       console.log("Successfully joined room:", roomName);
+      // Update UI to show chat container
+      document.getElementById("joinRoomModal").style.display = "none";
+      document.getElementById("roomContainer").style.display = "none";
+      document.getElementById("chatContainer").style.display = "flex";
+      document.getElementById("roomNameDisplay").textContent = roomName;
+      document.getElementById("messages").innerHTML = "";
       fetchRoomAdmin();
     });
 
@@ -340,14 +353,9 @@
         .then(response => response.json())
         .then(data => {
           if (data.message === "Room created successfully!") {
-            // After creating, force the user to join using the same room code.
+            // Instead of immediately switching UI, emit join event and wait for confirmation
             currentRoom = newRoom;
             socket.emit("join room", { roomName: newRoom, code: roomCode });
-            document.getElementById("roomContainer").style.display = "none";
-            document.getElementById("chatContainer").style.display = "flex";
-            document.getElementById("roomNameDisplay").textContent = newRoom;
-            document.getElementById("messages").innerHTML = "";
-            fetchRoomAdmin();
           } else {
             alert(data.message);
           }
@@ -355,14 +363,14 @@
         .catch(error => console.error("Error:", error));
     }
 
-    // When a user clicks a room in the list, show the modal to force them to enter a room code
+    // When a user clicks a room in the list, show the modal so they must enter a room code.
     function joinRoom(room) {
       currentRoomCandidate = room;
       document.getElementById("joinRoomCodeInput").value = "";
       document.getElementById("joinRoomModal").style.display = "flex";
     }
 
-    // Called when the user clicks "Join Room" in the modal
+    // Called when the user clicks "Join Room" in the modal.
     function submitJoinRoomCode() {
       const code = document.getElementById("joinRoomCodeInput").value.trim();
       if (!code) {
@@ -371,12 +379,7 @@
       }
       currentRoom = currentRoomCandidate;
       socket.emit("join room", { roomName: currentRoom, code: code });
-      document.getElementById("joinRoomModal").style.display = "none";
-      document.getElementById("roomContainer").style.display = "none";
-      document.getElementById("chatContainer").style.display = "flex";
-      document.getElementById("roomNameDisplay").textContent = currentRoom;
-      document.getElementById("messages").innerHTML = "";
-      fetchRoomAdmin();
+      // Do not change the UI immediately; wait for the "joined room" event.
     }
 
     function fetchRoomAdmin() {
