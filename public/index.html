@@ -67,12 +67,12 @@
         <h2>Login</h2>
         <form onsubmit="event.preventDefault(); loginUser();">
           <div class="input-group">
-            <label for="loginUsername">Username</label>
-            <input type="text" id="loginUsername" placeholder="Enter username" />
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="Enter email" required />
           </div>
           <div class="input-group">
             <label for="loginPassword">Password</label>
-            <input type="password" id="loginPassword" placeholder="Enter password" />
+            <input type="password" id="loginPassword" placeholder="Enter password" required />
           </div>
           <button type="submit" class="auth-btn">Sign In</button>
           <a href="forgot-password.html" class="forgot-link">Forgot your password?</a>
@@ -88,12 +88,20 @@
         <h2>Sign Up</h2>
         <form onsubmit="event.preventDefault(); registerUser();">
           <div class="input-group">
+            <label for="signupFullName">Full Name</label>
+            <input type="text" id="signupFullName" placeholder="Enter your full name" required />
+          </div>
+          <div class="input-group">
+            <label for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" placeholder="Enter your email" required />
+          </div>
+          <div class="input-group">
             <label for="signupUsername">Username</label>
-            <input type="text" id="signupUsername" placeholder="Choose a username" />
+            <input type="text" id="signupUsername" placeholder="Choose a username" required />
           </div>
           <div class="input-group">
             <label for="signupPassword">Password</label>
-            <input type="password" id="signupPassword" placeholder="Create a password" />
+            <input type="password" id="signupPassword" placeholder="Create a password" required />
           </div>
           <button type="submit" class="auth-btn">Register</button>
         </form>
@@ -199,13 +207,11 @@
     // If the room code is incorrect, the server emits "join error"
     socket.on("join error", errorMsg => {
       alert(errorMsg);
-      // Keep the modal open so the user can try again.
     });
 
     // Only when the server confirms joining does the UI update.
     socket.on("joined room", roomName => {
       console.log("Successfully joined room:", roomName);
-      // Update UI to show chat container
       document.getElementById("joinRoomModal").style.display = "none";
       document.getElementById("roomContainer").style.display = "none";
       document.getElementById("chatContainer").style.display = "flex";
@@ -254,18 +260,18 @@
     }
 
     function loginUser() {
-      const loginUsername = document.getElementById("loginUsername").value.trim();
+      const loginEmail = document.getElementById("loginEmail").value.trim();
       const loginPassword = document.getElementById("loginPassword").value.trim();
-      if (loginUsername && loginPassword) {
+      if (loginEmail && loginPassword) {
         fetch("/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: loginUsername, password: loginPassword })
+          body: JSON.stringify({ email: loginEmail, password: loginPassword })
         })
           .then(response => response.json())
           .then(data => {
             if (data.message === "Login successful!") {
-              username = loginUsername;
+              username = data.user.username;
               document.getElementById("authContainer").style.display = "none";
               document.getElementById("roomContainer").style.display = "block";
               fetchRooms();
@@ -280,13 +286,20 @@
     }
 
     function registerUser() {
-      const regUsername = document.getElementById("signupUsername").value.trim();
-      const regPassword = document.getElementById("signupPassword").value.trim();
-      if (regUsername && regPassword) {
+      const fullName = document.getElementById("signupFullName").value.trim();
+      const email = document.getElementById("signupEmail").value.trim();
+      const usernameField = document.getElementById("signupUsername").value.trim();
+      const password = document.getElementById("signupPassword").value.trim();
+      if (fullName && email && usernameField && password) {
         fetch("/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: regUsername, password: regPassword })
+          body: JSON.stringify({
+            full_name: fullName,
+            email: email,
+            username: usernameField,
+            password: password,
+          })
         })
           .then(response => response.json())
           .then(data => {
@@ -353,7 +366,6 @@
         .then(response => response.json())
         .then(data => {
           if (data.message === "Room created successfully!") {
-            // Instead of immediately switching UI, emit join event and wait for confirmation
             currentRoom = newRoom;
             socket.emit("join room", { roomName: newRoom, code: roomCode });
           } else {
@@ -379,7 +391,6 @@
       }
       currentRoom = currentRoomCandidate;
       socket.emit("join room", { roomName: currentRoom, code: code });
-      // Do not change the UI immediately; wait for the "joined room" event.
     }
 
     function fetchRoomAdmin() {

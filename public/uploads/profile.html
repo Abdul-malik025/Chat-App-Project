@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Profile - Chat App</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Additional styling for the profile page */
+    #profile-container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    #profile-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    #profile-info {
+      margin-bottom: 20px;
+    }
+    #profile-info img {
+      display: block;
+      max-width: 150px;
+      margin: 0 auto 15px;
+      border-radius: 50%;
+    }
+    #profile-info p {
+      font-size: 16px;
+      color: #555;
+      margin: 5px 0;
+      text-align: center;
+    }
+    #profile-update-form input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    #profile-update-form button {
+      width: 100%;
+      padding: 10px;
+      background: #40b3ff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #profile-update-form button:hover {
+      background: #1d9bee;
+    }
+  </style>
+</head>
+<body>
+  <div id="profile-container">
+    <h2>Your Profile</h2>
+    <!-- Profile display -->
+    <div id="profile-info">
+      <img id="profile-picture" src="default-profile.png" alt="Profile Picture" />
+      <p><strong>Username:</strong> <span id="username"></span></p>
+      <p><strong>Full Name:</strong> <span id="full-name"></span></p>
+      <p><strong>Email:</strong> <span id="email"></span></p>
+    </div>
+    <h3>Update Profile</h3>
+    <form id="profile-update-form">
+      <input type="text" id="full-name-input" placeholder="Full Name" required />
+      <input type="email" id="email-input" placeholder="Email" required />
+      <input type="text" id="profile-picture-url" placeholder="Profile Picture URL (optional)" />
+      <button type="submit">Update Profile</button>
+    </form>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $.get("/profile", function(response) {
+        if (response.userProfile) {
+          $("#username").text(response.userProfile.username);
+          $("#full-name").text(response.userProfile.full_name);
+          $("#email").text(response.userProfile.email);
+          if (response.userProfile.profile_picture) {
+            $("#profile-picture").attr("src", response.userProfile.profile_picture);
+          }
+        } else {
+          alert("You need to be logged in to view your profile.");
+          window.location.href = "/";
+        }
+      });
+
+      $("#profile-update-form").submit(function(e) {
+        e.preventDefault();
+        const fullName = $("#full-name-input").val();
+        const email = $("#email-input").val();
+        const profilePicture = $("#profile-picture-url").val();
+        $.ajax({
+          url: "/profile",
+          method: "PUT",
+          data: JSON.stringify({ full_name: fullName, email: email, profile_picture: profilePicture }),
+          contentType: "application/json",
+          success: function(response) {
+            alert(response.message);
+            window.location.reload();
+          },
+          error: function(err) {
+            alert("Error updating profile.");
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
