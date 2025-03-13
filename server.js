@@ -303,9 +303,9 @@ const transporter = nodemailer.createTransport({
 });
 
 app.post("/reset-password-request", (req, res) => {
-  const { username } = req.body; // assuming username holds the user's email address
-  if (!username)
-    return res.status(400).json({ message: "Username (email) is required." });
+  const { email } = req.body; // assuming username holds the user's email address
+  if (!email)
+    return res.status(400).json({ message: "Email is required." });
   const query = "SELECT * FROM users WHERE email = ?";
   db.query(query, [username], (err, results) => {
     if (err) {
@@ -318,7 +318,7 @@ app.post("/reset-password-request", (req, res) => {
     const token = crypto.randomBytes(20).toString("hex");
     const expires = new Date(Date.now() + 3600000);
     const updateQuery = "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?";
-    db.query(updateQuery, [token, expires, username], (err, result) => {
+    db.query(updateQuery, [token, expires, email], (err, result) => {
       if (err) {
         console.error("DB error:", err);
         return res.status(500).json({ message: "Database error." });
