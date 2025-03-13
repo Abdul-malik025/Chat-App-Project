@@ -156,6 +156,34 @@ app.post("/login", (req, res) => {
   });
 });
 
+// Search for users (excluding the currently logged in user)
+app.get("/search-users", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "User not logged in." });
+  }
+  const currentUser = req.session.user.username;
+  const queryParam = req.query.query;
+  if (!queryParam) {
+    return res.status(400).json({ message: "Query parameter is required." });
+  }
+  const searchQuery = `
+    SELECT username, full_name, email, profile_picture 
+    FROM users 
+    WHERE (username LIKE ? OR full_name LIKE ? OR email LIKE ?)
+      AND username != ?
+  `;
+  const likeQuery = `%${queryParam}%`;
+  db.query(searchQuery, [likeQuery, likeQuery, likeQuery, currentUser], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Database error." });
+    }
+    return res.status(200).json({ users: results });
+  });
+});
+
+
+
 // Logout endpoint
 app.post("/logout", (req, res) => {
   req.session.destroy((err) => {
@@ -385,6 +413,23 @@ io.on("connection", (socket) => {
       });
     });
   });
+
+  // Inside your io.on("connection") block
+socket.on("register user", (data) => {
+  if (data.username) {
+    socket.join(data.username);
+    console.log(`Socket ${socket.id} joined personal room: ${data.username}`);
+  }
+});
+
+socket.on("private message", (data) => {
+  // data should have: { to, from, message, [media, mediaType] }
+  const { to, from, message, media, mediaType } = data;
+  if (!to || !from || (!message && !media)) return;
+  console.log(`Private message from ${from} to ${to}: ${message}`);
+  io.to(to).emit("private message", { from, message, media, mediaType });
+});
+
 
 
   socket.on("typing", (data) => {
