@@ -214,12 +214,12 @@ app.put("/profile", (req, res) => {
       console.error("Error updating profile:", err);
       return res.status(500).json({ message: "Error updating profile." });
     }
-    // Optionally update session data
     req.session.user.full_name = full_name;
     req.session.user.email = email;
     return res.status(200).json({ message: "Profile updated successfully!" });
   });
 });
+
 
 //////////////////////////////
 // ROOM ENDPOINTS
@@ -385,6 +385,21 @@ io.on("connection", (socket) => {
       });
     });
   });
+
+
+  socket.on("typing", (data) => {
+    // Broadcast to all other clients in the room that this user is typing.
+    const { room, username } = data;
+    socket.to(room).emit("typing", { username });
+  });
+
+
+  // Listen for stop typing events.
+  socket.on("stop typing", (data) => {
+    const { room, username } = data;
+    socket.to(room).emit("stop typing", { username });
+  });
+
 
   // Handle incoming chat messages (with optional media)
   socket.on("chat message", (data) => {

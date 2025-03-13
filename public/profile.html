@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Your Profile - Chat App</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
   <style>
-    /* Additional styling for the profile page */
+    /* Advanced Profile Page Styles */
     #profile-container {
       max-width: 500px;
       margin: 40px auto;
       background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     #profile-container h2 {
       text-align: center;
@@ -21,13 +22,18 @@
       color: #333;
     }
     #profile-info {
-      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 25px;
     }
     #profile-info img {
-      display: block;
-      max-width: 150px;
-      margin: 0 auto 15px;
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
       border-radius: 50%;
+      margin-bottom: 15px;
+      border: 3px solid #40b3ff;
     }
     #profile-info p {
       font-size: 16px;
@@ -35,17 +41,24 @@
       margin: 5px 0;
       text-align: center;
     }
-    #profile-update-form input {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
+    #profile-update-form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    #profile-update-form input[type="text"],
+    #profile-update-form input[type="email"] {
+      padding: 12px;
       border: 1px solid #ddd;
       border-radius: 5px;
-      font-size: 14px;
+      font-size: 15px;
+      width: 100%;
+    }
+    #profile-update-form input[type="file"] {
+      padding: 5px;
     }
     #profile-update-form button {
-      width: 100%;
-      padding: 10px;
+      padding: 12px;
       background: #40b3ff;
       color: #fff;
       border: none;
@@ -57,11 +70,19 @@
     #profile-update-form button:hover {
       background: #1d9bee;
     }
+    #success-message {
+      text-align: center;
+      color: green;
+      margin-bottom: 10px;
+      font-weight: bold;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div id="profile-container">
     <h2>Your Profile</h2>
+    <div id="success-message">Profile updated successfully!</div>
     <!-- Profile display -->
     <div id="profile-info">
       <img id="profile-picture" src="uploads/default-profile.png" alt="Profile Picture" />
@@ -69,24 +90,27 @@
       <p><strong>Full Name:</strong> <span id="full-name"></span></p>
       <p><strong>Email:</strong> <span id="email"></span></p>
     </div>
-    <h3>Update Profile</h3>
+    <h3>Update Your Profile</h3>
     <form id="profile-update-form">
       <input type="text" id="full-name-input" placeholder="Full Name" required />
       <input type="email" id="email-input" placeholder="Email" required />
-      <input type="text" id="profile-picture-url" placeholder="Profile Picture URL (optional)" />
+      <label for="profile-picture-input">Upload Profile Picture:</label>
+      <input type="file" id="profile-picture-input" accept="image/*" />
       <button type="submit">Update Profile</button>
     </form>
   </div>
 
+  <!-- jQuery for AJAX calls -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script>
-    $(document).ready(function() {
+    $(document).ready(function(){
+      // Fetch user profile
       $.get("/profile", function(response) {
-        if (response.userProfile) {
+        if(response.userProfile) {
           $("#username").text(response.userProfile.username);
           $("#full-name").text(response.userProfile.full_name);
           $("#email").text(response.userProfile.email);
-          if (response.userProfile.profile_picture) {
+          if(response.userProfile.profile_picture) {
             $("#profile-picture").attr("src", response.userProfile.profile_picture);
           }
         } else {
@@ -95,26 +119,58 @@
         }
       });
 
+      // Handle profile update form submission
       $("#profile-update-form").submit(function(e) {
         e.preventDefault();
         const fullName = $("#full-name-input").val();
         const email = $("#email-input").val();
-        const profilePicture = $("#profile-picture-url").val();
-        $.ajax({
-          url: "/profile",
-          method: "PUT",
-          data: JSON.stringify({ full_name: fullName, email: email, profile_picture: profilePicture }),
-          contentType: "application/json",
-          success: function(response) {
-            alert(response.message);
-            window.location.reload();
-          },
-          error: function(err) {
-            alert("Error updating profile.");
-          }
-        });
+        const fileInput = $("#profile-picture-input")[0];
+
+        // If a new file is selected, upload it first.
+        if(fileInput.files && fileInput.files[0]){
+          const formData = new FormData();
+          formData.append("file", fileInput.files[0]);
+          $.ajax({
+            url: "/upload",
+            method: "POST",
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(uploadResponse){
+              updateProfile(fullName, email, uploadResponse.fileUrl);
+            },
+            error: function(err){
+              alert("Error uploading profile picture.");
+            }
+          });
+        } else {
+          updateProfile(fullName, email, null);
+        }
       });
     });
+
+    // Function to update the profile via the /profile endpoint
+    function updateProfile(fullName, email, profilePictureUrl) {
+      const updateData = {
+        full_name: fullName,
+        email: email,
+        profile_picture: profilePictureUrl
+      };
+      $.ajax({
+        url: "/profile",
+        method: "PUT",
+        data: JSON.stringify(updateData),
+        contentType: "application/json",
+        success: function(response) {
+          $("#success-message").fadeIn(500).delay(2000).fadeOut(500, function(){
+            window.location.reload();
+          });
+        },
+        error: function(err) {
+          alert("Error updating profile.");
+        }
+      });
+    }
   </script>
 </body>
 </html>
