@@ -337,10 +337,9 @@
           .then(response => response.json())
           .then(data => {
             if (data.message === "Login successful!") {
+              // Save username globally and redirect to dashboard
               username = data.user.username;
-              document.getElementById("authContainer").style.display = "none";
-              document.getElementById("roomContainer").style.display = "block";
-              fetchRooms();
+              window.location.href = "dashboard.html";
             } else {
               alert(data.message);
             }
@@ -350,6 +349,7 @@
         alert("Please fill in all fields.");
       }
     }
+    
 
     function registerUser() {
       const fullName = document.getElementById("signupFullName").value.trim();

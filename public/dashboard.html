@@ -50,7 +50,6 @@
     .btn:hover {
       background: #1d9bee;
     }
-    /* Styles for the user search results */
     #searchResults {
       margin-top: 15px;
       text-align: left;
@@ -74,54 +73,6 @@
     #searchResults .user button:hover {
       background: #1d9bee;
     }
-    /* DM Modal styling */
-    #dmModal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: none;
-      background: rgba(0,0,0,0.5);
-      align-items: center;
-      justify-content: center;
-      z-index: 300;
-    }
-    #dmModal .modal-content {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      width: 300px;
-      text-align: center;
-    }
-    #dmModal .modal-content h2 {
-      margin-bottom: 15px;
-      font-size: 18px;
-      color: #333;
-    }
-    #dmModal .modal-content textarea {
-      width: 100%;
-      height: 80px;
-      padding: 10px;
-      margin-bottom: 15px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 14px;
-      resize: none;
-    }
-    #dmModal .modal-content button {
-      padding: 10px 20px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 14px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    #dmModal .modal-content button:hover {
-      background: #1d9bee;
-    }
   </style>
 </head>
 <body>
@@ -134,40 +85,21 @@
     </div>
     <div class="dashboard-section">
       <h2>Direct Messages</h2>
-      <p>Search for users and send them a direct message.</p>
+      <p>Search for a user to start a private conversation.</p>
       <input type="text" id="userSearchInput" placeholder="Search users..." style="width: 70%; padding: 10px; margin-bottom: 10px;"/>
       <button class="btn" onclick="searchUsers()">Search</button>
       <div id="searchResults"></div>
     </div>
+    <button class="logout-button" onclick="logoutUser()">Logout</button>
   </div>
 
-  <!-- DM Modal -->
-  <div id="dmModal">
-    <div class="modal-content">
-      <h2>Direct Message to <span id="dmRecipientName"></span></h2>
-      <textarea id="dmMessageInput" placeholder="Type your message here"></textarea>
-      <button onclick="sendDM()">Send</button>
-      <button onclick="closeDmModal()">Cancel</button>
-    </div>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
-    let username = "";
-    let currentDMRecipient = "";
-
-    // On dashboard load, check session and register user for DM
+    // Ensure the user is logged in; if not, redirect to landing page.
     window.onload = function() {
       fetch("/me")
         .then(response => response.json())
         .then(data => {
-          if (data.loggedIn) {
-            username = data.user.username;
-            // Register for direct messages
-            socket.emit("register user", { username });
-          } else {
-            // Redirect to login page (landing page)
+          if (!data.loggedIn) {
             window.location.href = "/";
           }
         })
@@ -177,7 +109,7 @@
         });
     };
 
-    // Function to search users using the /search-users endpoint
+    // Search users via /search-users endpoint.
     function searchUsers() {
       const query = document.getElementById("userSearchInput").value.trim();
       if (!query) {
@@ -193,7 +125,8 @@
             data.users.forEach(user => {
               const div = document.createElement("div");
               div.className = "user";
-              div.innerHTML = `<strong>${user.username}</strong> (${user.full_name}) <button onclick="openDmModal('${user.username}')">Message</button>`;
+              div.innerHTML = `<strong>${user.username}</strong> (${user.full_name}) 
+                <button onclick="startDM('${user.username}')">Message</button>`;
               resultsContainer.appendChild(div);
             });
           } else {
@@ -203,35 +136,29 @@
         .catch(error => console.error("Error searching users:", error));
     }
 
-    // Function to open the DM modal for a given recipient
-    function openDmModal(recipient) {
-      currentDMRecipient = recipient;
-      document.getElementById("dmRecipientName").textContent = recipient;
-      document.getElementById("dmMessageInput").value = "";
-      document.getElementById("dmModal").style.display = "flex";
+    // Function to generate a DM room name from two usernames (sorted alphabetically)
+    function generateDMRoomName(user1, user2) {
+      const sorted = [user1, user2].sort();
+      return "dm-" + sorted.join("-");
     }
 
-    function closeDmModal() {
-      document.getElementById("dmModal").style.display = "none";
+    // Function to start a DM (private chat) with a user
+    function startDM(recipient) {
+      // Generate a DM room name (example: dm-Jake-Jill)
+      const dmRoom = generateDMRoomName(username, recipient);
+      // Redirect to chat page with the DM room. You can pass it as a query parameter.
+      window.location.href = "chat.html?room=" + encodeURIComponent(dmRoom);
     }
 
-    // Function to send a direct message
-    function sendDM() {
-      const dmMessage = document.getElementById("dmMessageInput").value.trim();
-      if (!dmMessage) {
-        alert("Please type a message.");
-        return;
-      }
-      socket.emit("private message", { to: currentDMRecipient, from: username, message: dmMessage });
-      alert("Message sent to " + currentDMRecipient);
-      closeDmModal();
+    function logoutUser() {
+      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          window.location.href = "/";
+        })
+        .catch(error => console.error("Logout error:", error));
     }
-
-    // Listen for incoming private messages
-    socket.on("private message", (data) => {
-      alert("New DM from " + data.from + ": " + data.message);
-      // For production, you could integrate a DM inbox UI.
-    });
   </script>
 </body>
 </html>
