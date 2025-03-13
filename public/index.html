@@ -200,53 +200,6 @@
       }
     };
 
-let typing = false;
-let typingTimeout;
-
-// Listen for input events on the message input field
-document.getElementById("messageInput").addEventListener("input", function () {
-  if (!typing) {
-    typing = true;
-    socket.emit("typing", { room: currentRoom, username });
-  }
-  clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => {
-    typing = false;
-    socket.emit("stop typing", { room: currentRoom, username });
-  }, 1000);
-});
-
-// Listen for "typing" event from the server
-socket.on("typing", (data) => {
-  showTypingIndicator(data.username);
-});
-
-// Listen for "stop typing" event from the server
-socket.on("stop typing", (data) => {
-  hideTypingIndicator(data.username);
-});
-
-// Functions to display/hide typing indicator
-function showTypingIndicator(user) {
-  // Create the indicator element if it doesn't exist
-  let indicator = document.getElementById("typingIndicator");
-  if (!indicator) {
-    indicator = document.createElement("div");
-    indicator.id = "typingIndicator";
-    indicator.style.fontStyle = "italic";
-    indicator.style.margin = "5px";
-    // Append indicator at the bottom of the messages container
-    document.getElementById("messages").appendChild(indicator);
-  }
-  indicator.textContent = user + " is typing...";
-}
-
-function hideTypingIndicator(user) {
-  const indicator = document.getElementById("typingIndicator");
-  if (indicator) {
-    indicator.textContent = "";
-  }
-}
 
 
     /* ----- SOCKET.IO EVENTS ----- */
@@ -267,8 +220,8 @@ function hideTypingIndicator(user) {
       document.getElementById("roomNameDisplay").textContent = roomName;
       document.getElementById("messages").innerHTML = "";
       fetchRoomAdmin();
+      enableTypingIndicator();  // Initialize typing indicator handling now that a room is active
     });
-
     socket.on("chat history", messages => {
       const messageList = document.getElementById("messages");
       messageList.innerHTML = "";
@@ -296,6 +249,70 @@ function hideTypingIndicator(user) {
     socket.on("admin error", errorMsg => {
       alert(errorMsg);
     });
+
+
+    function enableTypingIndicator() {
+      const messageInput = document.getElementById("messageInput");
+      if (!messageInput) return;
+      let typing = false;
+      let typingTimeout;
+    
+      messageInput.addEventListener("input", function () {
+        // If currentRoom isn't set, don't emit
+        if (!currentRoom) return;
+    
+        if (!typing) {
+          typing = true;
+          console.log("Emitting typing event", { room: currentRoom, username });
+          socket.emit("typing", { room: currentRoom, username });
+        }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          typing = false;
+          console.log("Emitting stop typing event", { room: currentRoom, username });
+          socket.emit("stop typing", { room: currentRoom, username });
+        }, 1000);
+      });
+    }
+    
+   
+    
+    // Listen for "typing" event from the server
+    socket.on("typing", (data) => {
+      console.log("Received typing event:", data);
+      showTypingIndicator(data.username);
+    });
+    
+    // Listen for "stop typing" event from the server
+    socket.on("stop typing", (data) => {
+      console.log("Received stop typing event:", data);
+      hideTypingIndicator(data.username);
+    });
+    
+    // Functions to display/hide typing indicator
+    function showTypingIndicator(user) {
+      let indicator = document.getElementById("typingIndicator");
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "typingIndicator";
+        // Optional: style the indicator (adjust as needed)
+        indicator.style.fontStyle = "italic";
+        indicator.style.margin = "5px";
+        indicator.style.color = "#555";
+        document.getElementById("messages").appendChild(indicator);
+      }
+      indicator.textContent = user + " is typing...";
+      // Optionally, scroll into view
+      indicator.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+    
+    function hideTypingIndicator(user) {
+      const indicator = document.getElementById("typingIndicator");
+      if (indicator) {
+        indicator.textContent = "";
+      }
+    }
+    
 
     /* ----- LOGIN/SIGNUP FUNCTIONS ----- */
     function showSignup() {
