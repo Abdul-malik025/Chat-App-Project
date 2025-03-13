@@ -32,10 +32,30 @@ const SESSION_SECRET = "chatapp";
 // Use MySQL session store for production
 const sessionStore = new MySQLStore({}, db.promise());
 
-// Middleware for parsing bodies
+// ====================================================
+// Protect Static Files Middleware
+// ====================================================
+// Define a whitelist of public routes that are allowed without login.
+const publicWhitelist = ["/", "/index.html", "/login.html", "/forgot-password.html"];
+// Middleware: for any request that is not whitelisted, check if user is logged in.
+app.use((req, res, next) => {
+  // Using req.path ensures we ignore any query parameters.
+  if (publicWhitelist.includes(req.path)) {
+    return next();
+  }
+  if (req.session && req.session.user) {
+    return next();
+  }
+  // If not logged in, redirect to landing page.
+  return res.redirect("/");
+});
+
+// ====================================================
+// Standard Middleware Setup
+// ====================================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.set("trust proxy", 1); // Required for sessions on some platforms
+app.set("trust proxy", 1); // For sessions on some platforms
 
 // Session setup
 app.use(
@@ -46,19 +66,19 @@ app.use(
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      secure: true, // Set to true if using HTTPS
+      secure: true, // Set true if using HTTPS
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
   })
 );
 
-// Serve static files from public folder
+// Serve static files from the public folder (this is protected by our middleware above)
 app.use(express.static("public"));
 
-//////////////////////////////
-// FILE UPLOAD SETUP (Multer)
-//////////////////////////////
+// ====================================================
+// File Upload Setup (Multer)
+// ====================================================
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "public/uploads/");
@@ -71,7 +91,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// File upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file)
     return res.status(400).json({ message: "No file uploaded." });
@@ -87,9 +106,9 @@ app.post("/upload", upload.single("file"), (req, res) => {
   });
 });
 
-//////////////////////////////
-// AUTHENTICATION ENDPOINTS
-//////////////////////////////
+// ====================================================
+// Authentication Endpoints
+// ====================================================
 
 // Registration endpoint – accepts full_name and email.
 app.post("/register", (req, res) => {
@@ -108,9 +127,7 @@ app.post("/register", (req, res) => {
     bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ message: "Error processing password." });
+        return res.status(500).json({ message: "Error processing password." });
       }
       const query =
         "INSERT INTO users (username, password, full_name, email) VALUES (?, ?, ?, ?)";
@@ -168,9 +185,9 @@ app.get("/me", (req, res) => {
   return res.status(200).json({ loggedIn: false });
 });
 
-//////////////////////////////
-// PROFILE ENDPOINTS
-//////////////////////////////
+// ====================================================
+// Profile Endpoints
+// ====================================================
 
 // Get user profile
 app.get("/profile", (req, res) => {
@@ -213,9 +230,9 @@ app.put("/profile", (req, res) => {
   });
 });
 
-//////////////////////////////
-// ROOM ENDPOINTS
-//////////////////////////////
+// ====================================================
+// Room Endpoints
+// ====================================================
 
 // List available rooms
 app.get("/rooms", (req, res) => {
@@ -278,7 +295,9 @@ app.get("/roomAdmin", (req, res) => {
   });
 });
 
-// Search users endpoint
+// ====================================================
+// Search Users Endpoint (for Dashboard DM search)
+// ====================================================
 app.get("/search-users", (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ message: "User not logged in." });
@@ -304,9 +323,9 @@ app.get("/search-users", (req, res) => {
   });
 });
 
-//////////////////////////////
+// ====================================================
 // NODEMAILER & PASSWORD RESET
-//////////////////////////////
+// ====================================================
 const transporter = nodemailer.createTransport({
   host: "smtp.office365.com",
   port: 587,
@@ -364,9 +383,10 @@ app.post("/reset-password-request", (req, res) => {
   });
 });
 
-//////////////////////////////
+
+// ====================================================
 // SOCKET.IO HANDLING
-//////////////////////////////
+// ====================================================
 io.on("connection", (socket) => {
   console.log("A user connected: " + socket.id);
 
@@ -382,7 +402,7 @@ io.on("connection", (socket) => {
   socket.on("join room", (data) => {
     const roomName = data.roomName;
     const providedCode = data.code || "";
-    // If it's a DM room, room name starts with "dm-", skip code validation.
+    // For DM rooms (names starting with "dm-"), skip code validation.
     if (roomName.startsWith("dm-")) {
       socket.join(roomName);
       console.log(`Socket ${socket.id} joined DM room: ${roomName}`);
@@ -526,7 +546,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start the server
+// ====================================================
+// Start the Server
+// ====================================================
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

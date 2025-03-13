@@ -81,7 +81,7 @@
     <div class="dashboard-section">
       <h2>Chat Rooms</h2>
       <p>Join an existing room or create a new one.</p>
-      <a href="index.html" class="btn">Enter Chat Rooms</a>
+      <a href="chat.html" class="btn">Enter Chat Rooms</a>
     </div>
     <div class="dashboard-section">
       <h2>Direct Messages</h2>
@@ -90,17 +90,22 @@
       <button class="btn" onclick="searchUsers()">Search</button>
       <div id="searchResults"></div>
     </div>
-    <button class="logout-button" onclick="logoutUser()">Logout</button>
+    <button class="logout-button btn" onclick="logoutUser()">Logout</button>
   </div>
 
   <script>
-    // Ensure the user is logged in; if not, redirect to landing page.
+    // Global variable to store logged-in username
+    let username = "";
+
+    // Check session on load; if not logged in, redirect to landing page.
     window.onload = function() {
       fetch("/me")
         .then(response => response.json())
         .then(data => {
           if (!data.loggedIn) {
             window.location.href = "/";
+          } else {
+            username = data.user.username;
           }
         })
         .catch(err => {
@@ -109,7 +114,7 @@
         });
     };
 
-    // Search users via /search-users endpoint.
+    // Search users using the /search-users endpoint.
     function searchUsers() {
       const query = document.getElementById("userSearchInput").value.trim();
       if (!query) {
@@ -126,7 +131,7 @@
               const div = document.createElement("div");
               div.className = "user";
               div.innerHTML = `<strong>${user.username}</strong> (${user.full_name}) 
-                <button onclick="startDM('${user.username}')">Message</button>`;
+                                <button onclick="startDM('${user.username}')">Message</button>`;
               resultsContainer.appendChild(div);
             });
           } else {
@@ -136,20 +141,24 @@
         .catch(error => console.error("Error searching users:", error));
     }
 
-    // Function to generate a DM room name from two usernames (sorted alphabetically)
+    // Generate a DM room name from two usernames (sorted alphabetically).
     function generateDMRoomName(user1, user2) {
       const sorted = [user1, user2].sort();
       return "dm-" + sorted.join("-");
     }
 
-    // Function to start a DM (private chat) with a user
+    // Start a DM by generating a DM room name and redirecting to chat page.
     function startDM(recipient) {
-      // Generate a DM room name (example: dm-Jake-Jill)
+      if (!username) {
+        alert("You are not logged in!");
+        return;
+      }
       const dmRoom = generateDMRoomName(username, recipient);
-      // Redirect to chat page with the DM room. You can pass it as a query parameter.
+      // Redirect to chat page with the DM room as a query parameter.
       window.location.href = "chat.html?room=" + encodeURIComponent(dmRoom);
     }
 
+    // Logout user and redirect to landing page.
     function logoutUser() {
       fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
         .then(response => response.json())
