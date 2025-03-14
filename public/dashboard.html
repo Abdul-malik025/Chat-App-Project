@@ -73,7 +73,39 @@
     #searchResults .user button:hover {
       background: #1d9bee;
     }
-    
+    /* Inbox styles */
+    #inboxContainer {
+      margin-top: 20px;
+      text-align: left;
+      border: 1px solid #ddd;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    #inboxContainer h3 {
+      margin-top: 0;
+      color: #40b3ff;
+    }
+    .inbox-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .inbox-item:last-child {
+      border-bottom: none;
+    }
+    .inbox-item button {
+      padding: 5px 10px;
+      background: #40b3ff;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .inbox-item button:hover {
+      background: #1d9bee;
+    }
     /* DM Chat Modal Styles */
     #dmChatModal {
       display: none; /* Hidden by default */
@@ -84,7 +116,6 @@
       height: 100%;
       background: rgba(0,0,0,0.5);
       z-index: 300;
-      display: flex;
       align-items: center;
       justify-content: center;
     }
@@ -153,7 +184,7 @@
     <div class="dashboard-section">
       <h2>Chat Rooms</h2>
       <p>Join an existing room or create a new one.</p>
-      <a href="chat.html" class="btn">Enter Chat Rooms</a>
+      <a href="index.html" class="btn">Enter Chat Rooms</a>
     </div>
     <div class="dashboard-section">
       <h2>Direct Messages</h2>
@@ -161,6 +192,12 @@
       <input type="text" id="userSearchInput" placeholder="Search users..." style="width:70%; padding:10px; margin-bottom:10px;">
       <button class="btn" onclick="searchUsers()">Search</button>
       <div id="searchResults"></div>
+    </div>
+    <div id="inboxContainer">
+      <h3>Inbox Notifications</h3>
+      <div id="inboxList">
+        <!-- Inbox items will be added here -->
+      </div>
     </div>
     <button class="btn" onclick="logoutUser()">Logout</button>
   </div>
@@ -186,8 +223,10 @@
     let username = "";
     let currentDMRoom = "";
     let dmRecipient = "";
+    // Inbox notifications: object where key is room name and value is unread count.
+    let inboxNotifications = {};
 
-    // Check session on dashboard load
+    // On dashboard load, check session
     window.onload = function() {
       fetch("/me")
         .then(response => response.json())
@@ -196,7 +235,6 @@
             window.location.href = "/";
           } else {
             username = data.user.username;
-            // Register the user for private messaging
             socket.emit("register user", { username });
           }
         })
@@ -206,7 +244,7 @@
         });
     };
 
-    // Search users using the /search-users endpoint.
+    // Search users using /search-users endpoint
     function searchUsers() {
       const query = document.getElementById("userSearchInput").value.trim();
       if (!query) {
@@ -233,21 +271,25 @@
         .catch(error => console.error("Error searching users:", error));
     }
 
-    // Generate a DM room name from two usernames (alphabetically sorted)
+    // Generate a DM room name by sorting usernames alphabetically.
     function generateDMRoomName(user1, user2) {
       const sorted = [user1, user2].sort();
       return "dm-" + sorted.join("-");
     }
 
-    // Open the DM Chat Modal on the dashboard without redirection.
+    // Open the DM chat modal without redirection.
     function openDmChatModal(recipient) {
       dmRecipient = recipient;
       document.getElementById("dmRecipientName").textContent = recipient;
       document.getElementById("dmMessagesContainer").innerHTML = "";
-      // Generate DM room name
+      // Generate DM room name.
       currentDMRoom = generateDMRoomName(username, recipient);
-      // Join the DM room (for DM rooms, skip room code)
+      // Emit join room event for DM room.
       socket.emit("join room", { roomName: currentDMRoom, code: "" });
+      // Clear any existing notifications for this DM room.
+      delete inboxNotifications[currentDMRoom];
+      updateInboxUI();
+      // Open DM modal.
       document.getElementById("dmChatModal").style.display = "flex";
     }
 
@@ -257,28 +299,21 @@
       document.getElementById("dmMessagesContainer").innerHTML = "";
     }
 
-    // Send a DM message in the modal
+    // Send a DM message from the modal.
     function sendDmMessage() {
       const dmMessage = document.getElementById("dmInput").value.trim();
       if (!dmMessage) {
         alert("Please type a message.");
         return;
       }
-      // Use the common "chat message" event with the DM room
+      // Emit message to the DM room.
       socket.emit("chat message", { username, message: dmMessage, room: currentDMRoom });
+      // Append your own message in the DM modal.
+      appendDmMessage(username, dmMessage, null, null, "local-" + new Date().getTime());
       document.getElementById("dmInput").value = "";
     }
 
-    // Listen for incoming chat messages
-    socket.on("chat message", (data) => {
-      // If the current room is a DM room and matches the message's room, display in DM modal.
-      if (currentDMRoom && data.room === currentDMRoom) {
-        appendDmMessage(data.username, data.message, data.media, data.mediaType, data.id);
-      }
-      // For public chat, other handling is in chat.html.
-    });
-
-    // Append message in DM modal
+    // Append a message in the DM modal.
     function appendDmMessage(sender, text, media, mediaType, messageId) {
       const container = document.getElementById("dmMessagesContainer");
       const msgDiv = document.createElement("div");
@@ -287,6 +322,54 @@
       msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
       container.appendChild(msgDiv);
       container.scrollTop = container.scrollHeight;
+    }
+
+    // Listen for incoming chat messages.
+    socket.on("chat message", (data) => {
+      if (data.room && data.room.startsWith("dm-")) {
+        // If DM modal is open and it's the current DM room, append message.
+        if (currentDMRoom && data.room === currentDMRoom) {
+          appendDmMessage(data.username, data.message, data.media, data.mediaType, data.id);
+        } else {
+          // Otherwise, update inbox notifications.
+          if (!inboxNotifications[data.room]) {
+            inboxNotifications[data.room] = 0;
+          }
+          inboxNotifications[data.room]++;
+          updateInboxUI();
+        }
+      }
+      // Public chat messages are handled in chat.html.
+    });
+
+    // Update the inbox UI with notification counts.
+    function updateInboxUI() {
+      const inboxList = document.getElementById("inboxList");
+      inboxList.innerHTML = "";
+      for (let room in inboxNotifications) {
+        const count = inboxNotifications[room];
+        const div = document.createElement("div");
+        div.className = "inbox-item";
+        div.innerHTML = `Room <strong>${room}</strong>: ${count} new message(s)
+                         <button onclick="openInboxRoom('${room}')">Open</button>`;
+        inboxList.appendChild(div);
+      }
+    }
+
+    // Open a room from the inbox.
+    function openInboxRoom(room) {
+      if (room.startsWith("dm-")) {
+        // For DM room, parse recipient and open DM modal.
+        const parts = room.substring(3).split("-");
+        const recipient = parts.find(name => name !== username);
+        openDmChatModal(recipient);
+      } else {
+        // For public rooms, redirect to chat.html.
+        window.location.href = "chat.html?room=" + encodeURIComponent(room);
+      }
+      // Remove notifications for that room.
+      delete inboxNotifications[room];
+      updateInboxUI();
     }
 
     function logoutUser() {
