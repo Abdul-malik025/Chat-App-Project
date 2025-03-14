@@ -184,7 +184,7 @@
     <div class="dashboard-section">
       <h2>Chat Rooms</h2>
       <p>Join an existing room or create a new one.</p>
-      <a href="index.html" class="btn">Enter Chat Rooms</a>
+      <a href="chat.html" class="btn">Enter Chat Rooms</a>
     </div>
     <div class="dashboard-section">
       <h2>Direct Messages</h2>
@@ -221,12 +221,12 @@
   <script>
     const socket = io();
     let username = "";
-    let currentDMRoom = "";
+    // currentDMRoom is not used now because DM messaging uses private message events.
     let dmRecipient = "";
-    // Inbox notifications: object where key is room name and value is unread count.
+    // Inbox notifications: key is DM room (generated name), value is count.
     let inboxNotifications = {};
 
-    // On dashboard load, check session
+    // Check session on dashboard load.
     window.onload = function() {
       fetch("/me")
         .then(response => response.json())
@@ -235,6 +235,7 @@
             window.location.href = "/";
           } else {
             username = data.user.username;
+            // Register for private messages (join personal room).
             socket.emit("register user", { username });
           }
         })
@@ -244,7 +245,7 @@
         });
     };
 
-    // Search users using /search-users endpoint
+    // Search users using /search-users endpoint.
     function searchUsers() {
       const query = document.getElementById("userSearchInput").value.trim();
       if (!query) {
@@ -277,17 +278,15 @@
       return "dm-" + sorted.join("-");
     }
 
-    // Open the DM chat modal without redirection.
+    // Open the DM Chat Modal.
     function openDmChatModal(recipient) {
       dmRecipient = recipient;
       document.getElementById("dmRecipientName").textContent = recipient;
       document.getElementById("dmMessagesContainer").innerHTML = "";
-      // Generate DM room name.
-      currentDMRoom = generateDMRoomName(username, recipient);
-      // Emit join room event for DM room.
-      socket.emit("join room", { roomName: currentDMRoom, code: "" });
-      // Clear any existing notifications for this DM room.
-      delete inboxNotifications[currentDMRoom];
+      // For DM messaging, we now use the private message event.
+      // Clear any existing inbox notifications for this DM room.
+      const dmRoom = generateDMRoomName(username, recipient);
+      delete inboxNotifications[dmRoom];
       updateInboxUI();
       // Open DM modal.
       document.getElementById("dmChatModal").style.display = "flex";
@@ -295,25 +294,25 @@
 
     function closeDmChatModal() {
       document.getElementById("dmChatModal").style.display = "none";
-      currentDMRoom = "";
-      document.getElementById("dmMessagesContainer").innerHTML = "";
+      // Optionally, clear dmRecipient.
+      dmRecipient = "";
     }
 
-    // Send a DM message from the modal.
+    // Send a DM message using the "private message" event.
     function sendDmMessage() {
       const dmMessage = document.getElementById("dmInput").value.trim();
       if (!dmMessage) {
         alert("Please type a message.");
         return;
       }
-      // Emit message to the DM room.
-      socket.emit("chat message", { username, message: dmMessage, room: currentDMRoom });
-      // Append your own message in the DM modal.
+      // Emit private message event.
+      socket.emit("private message", { to: dmRecipient, from: username, message: dmMessage });
+      // Append your own message in the modal.
       appendDmMessage(username, dmMessage, null, null, "local-" + new Date().getTime());
       document.getElementById("dmInput").value = "";
     }
 
-    // Append a message in the DM modal.
+    // Append a DM message in the DM modal.
     function appendDmMessage(sender, text, media, mediaType, messageId) {
       const container = document.getElementById("dmMessagesContainer");
       const msgDiv = document.createElement("div");
@@ -324,25 +323,25 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Listen for incoming chat messages.
-    socket.on("chat message", (data) => {
-      if (data.room && data.room.startsWith("dm-")) {
-        // If DM modal is open and it's the current DM room, append message.
-        if (currentDMRoom && data.room === currentDMRoom) {
-          appendDmMessage(data.username, data.message, data.media, data.mediaType, data.id);
-        } else {
-          // Otherwise, update inbox notifications.
-          if (!inboxNotifications[data.room]) {
-            inboxNotifications[data.room] = 0;
-          }
-          inboxNotifications[data.room]++;
-          updateInboxUI();
+    // Listen for incoming private messages.
+    socket.on("private message", (data) => {
+      console.log("Received private message:", data);
+      // Generate DM room name from sender and recipient.
+      const dmRoom = generateDMRoomName(username, data.from);
+      if (document.getElementById("dmChatModal").style.display === "flex" && dmRecipient === data.from) {
+        // If DM modal is open for this conversation, append the message.
+        appendDmMessage(data.from, data.message, data.media, data.mediaType, data.id);
+      } else {
+        // Otherwise, update inbox notifications.
+        if (!inboxNotifications[dmRoom]) {
+          inboxNotifications[dmRoom] = 0;
         }
+        inboxNotifications[dmRoom]++;
+        updateInboxUI();
       }
-      // Public chat messages are handled in chat.html.
     });
 
-    // Update the inbox UI with notification counts.
+    // Update the inbox UI.
     function updateInboxUI() {
       const inboxList = document.getElementById("inboxList");
       inboxList.innerHTML = "";
@@ -359,7 +358,7 @@
     // Open a room from the inbox.
     function openInboxRoom(room) {
       if (room.startsWith("dm-")) {
-        // For DM room, parse recipient and open DM modal.
+        // Parse room name to get the other participant.
         const parts = room.substring(3).split("-");
         const recipient = parts.find(name => name !== username);
         openDmChatModal(recipient);
@@ -367,7 +366,7 @@
         // For public rooms, redirect to chat.html.
         window.location.href = "chat.html?room=" + encodeURIComponent(room);
       }
-      // Remove notifications for that room.
+      // Clear notifications for that room.
       delete inboxNotifications[room];
       updateInboxUI();
     }
