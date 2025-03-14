@@ -130,7 +130,7 @@
   </div>
 
   <!-- ===== FULL-SCREEN CHAT SCREEN ===== -->
-  <!-- This container is used for both public and DM chats -->
+  <!-- Do NOT use class="container" on this div -->
   <div id="chatContainer" style="display: none;">
     <div class="chat-card">
       <div class="chat-header">
@@ -181,99 +181,37 @@
     let currentRoomCandidate = "";
     let roomAdmin = ""; // Store the room creator's username
 
-    // Check session and load appropriate view on page load
+    // Check session and apply saved theme on load
     window.onload = function() {
-      const params = new URLSearchParams(window.location.search);
-      const roomParam = params.get("room");
-      // Check if a room is specified in the URL (for DM rooms or direct joining)
-      if (roomParam) {
-        // If room parameter exists, assume user is already logged in
-        // (You might also want to verify session here)
-        currentRoom = roomParam;
-        document.getElementById("authContainer").style.display = "none";
-        document.getElementById("roomContainer").style.display = "none";
-        document.getElementById("chatContainer").style.display = "flex";
-        document.getElementById("roomNameDisplay").textContent = currentRoom;
-        // Join the room (for DM rooms, no room code is needed)
-        socket.emit("join room", { roomName: currentRoom, code: "" });
-      } else {
-        // Otherwise, check session normally and display auth or room selection
-        fetch("/me")
-          .then(response => response.json())
-          .then(data => {
-            if (data.loggedIn) {
-              username = data.user.username;
-              document.getElementById("authContainer").style.display = "none";
-              document.getElementById("roomContainer").style.display = "block";
-              fetchRooms();
-            }
-          })
-          .catch(err => console.error("Error checking session:", err));
-      }
+      fetch("/me")
+        .then(response => response.json())
+        .then(data => {
+          if (data.loggedIn) {
+            username = data.user.username;
+            document.getElementById("authContainer").style.display = "none";
+            document.getElementById("roomContainer").style.display = "block";
+            fetchRooms();
+          }
+        })
+        .catch(err => console.error("Error checking session:", err));
       const savedTheme = localStorage.getItem("theme");
       if (savedTheme === "dark") {
         document.body.classList.add("dark-mode");
       }
     };
 
-    // Typing indicator logic
-    let typing = false;
-    let typingTimeout;
 
-    document.getElementById("messageInput").addEventListener("input", function () {
-      if (!currentRoom) return;
-      if (!typing) {
-        typing = true;
-        console.log("Emitting typing event", { room: currentRoom, username });
-        socket.emit("typing", { room: currentRoom, username });
-      }
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        typing = false;
-        console.log("Emitting stop typing event", { room: currentRoom, username });
-        socket.emit("stop typing", { room: currentRoom, username });
-      }, 1000);
-    });
-
-    socket.on("typing", (data) => {
-      console.log("Received typing event:", data);
-      showTypingIndicator(data.username);
-    });
-
-    socket.on("stop typing", (data) => {
-      console.log("Received stop typing event:", data);
-      hideTypingIndicator(data.username);
-    });
-
-    function showTypingIndicator(user) {
-      let indicator = document.getElementById("typingIndicator");
-      if (!indicator) {
-        indicator = document.createElement("div");
-        indicator.id = "typingIndicator";
-        indicator.style.fontStyle = "italic";
-        indicator.style.margin = "5px";
-        indicator.style.color = "#555";
-        document.getElementById("messages").appendChild(indicator);
-      }
-      indicator.textContent = user + " is typing...";
-      indicator.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-
-    function hideTypingIndicator(user) {
-      const indicator = document.getElementById("typingIndicator");
-      if (indicator) {
-        indicator.textContent = "";
-      }
-    }
 
     /* ----- SOCKET.IO EVENTS ----- */
     socket.on("connect", () => console.log("Connected to server"));
     socket.on("disconnect", () => console.log("Disconnected from server"));
 
+    // If the room code is incorrect, the server emits "join error"
     socket.on("join error", errorMsg => {
       alert(errorMsg);
     });
 
+    // Only when the server confirms joining does the UI update.
     socket.on("joined room", roomName => {
       console.log("Successfully joined room:", roomName);
       document.getElementById("joinRoomModal").style.display = "none";
@@ -282,8 +220,8 @@
       document.getElementById("roomNameDisplay").textContent = roomName;
       document.getElementById("messages").innerHTML = "";
       fetchRoomAdmin();
+      enableTypingIndicator();  // Initialize typing indicator handling now that a room is active
     });
-
     socket.on("chat history", messages => {
       const messageList = document.getElementById("messages");
       messageList.innerHTML = "";
@@ -312,7 +250,71 @@
       alert(errorMsg);
     });
 
-    // ----- LOGIN/SIGNUP FUNCTIONS -----
+
+    function enableTypingIndicator() {
+      const messageInput = document.getElementById("messageInput");
+      if (!messageInput) return;
+      let typing = false;
+      let typingTimeout;
+    
+      messageInput.addEventListener("input", function () {
+        // If currentRoom isn't set, don't emit
+        if (!currentRoom) return;
+    
+        if (!typing) {
+          typing = true;
+          console.log("Emitting typing event", { room: currentRoom, username });
+          socket.emit("typing", { room: currentRoom, username });
+        }
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+          typing = false;
+          console.log("Emitting stop typing event", { room: currentRoom, username });
+          socket.emit("stop typing", { room: currentRoom, username });
+        }, 1000);
+      });
+    }
+    
+   
+    
+    // Listen for "typing" event from the server
+    socket.on("typing", (data) => {
+      console.log("Received typing event:", data);
+      showTypingIndicator(data.username);
+    });
+    
+    // Listen for "stop typing" event from the server
+    socket.on("stop typing", (data) => {
+      console.log("Received stop typing event:", data);
+      hideTypingIndicator(data.username);
+    });
+    
+    // Functions to display/hide typing indicator
+    function showTypingIndicator(user) {
+      let indicator = document.getElementById("typingIndicator");
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "typingIndicator";
+        // Optional: style the indicator (adjust as needed)
+        indicator.style.fontStyle = "italic";
+        indicator.style.margin = "5px";
+        indicator.style.color = "#555";
+        document.getElementById("messages").appendChild(indicator);
+      }
+      indicator.textContent = user + " is typing...";
+      // Optionally, scroll into view
+      indicator.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+    
+    function hideTypingIndicator(user) {
+      const indicator = document.getElementById("typingIndicator");
+      if (indicator) {
+        indicator.textContent = "";
+      }
+    }
+    
+
+    /* ----- LOGIN/SIGNUP FUNCTIONS ----- */
     function showSignup() {
       document.getElementById("loginCard").style.display = "none";
       document.getElementById("signupCard").style.display = "block";
@@ -335,8 +337,8 @@
           .then(response => response.json())
           .then(data => {
             if (data.message === "Login successful!") {
+              // Save username globally and redirect to dashboard
               username = data.user.username;
-              // Redirect to dashboard after login
               window.location.href = "dashboard.html";
             } else {
               alert(data.message);
@@ -347,6 +349,7 @@
         alert("Please fill in all fields.");
       }
     }
+    
 
     function registerUser() {
       const fullName = document.getElementById("signupFullName").value.trim();
@@ -392,7 +395,7 @@
         .catch(error => console.error("Logout error:", error));
     }
 
-    // ----- ROOM SELECTION FUNCTIONS -----
+    /* ----- ROOM SELECTION FUNCTIONS ----- */
     function fetchRooms() {
       fetch("/rooms")
         .then(response => response.json())
@@ -438,7 +441,7 @@
         .catch(error => console.error("Error:", error));
     }
 
-    // When a user clicks a room in the list, show the modal to enter a room code.
+    // When a user clicks a room in the list, show the modal so they must enter a room code.
     function joinRoom(room) {
       currentRoomCandidate = room;
       document.getElementById("joinRoomCodeInput").value = "";
@@ -481,7 +484,7 @@
       location.reload();
     }
 
-    // ----- CHAT FUNCTIONS -----
+    /* ----- CHAT FUNCTIONS ----- */
     function sendMessage() {
       const input = document.getElementById("messageInput");
       const message = input.value.trim();
@@ -528,7 +531,7 @@
       }
     }
 
-    // ----- EMOJI PICKER FUNCTIONS -----
+    /* ----- EMOJI PICKER FUNCTIONS ----- */
     function toggleEmojiPicker() {
       const picker = document.getElementById("emojiPicker");
       picker.style.display = picker.style.display === "none" ? "block" : "none";
@@ -540,7 +543,7 @@
       toggleEmojiPicker();
     }
 
-    // ----- FILE UPLOAD FUNCTION -----
+    /* ----- FILE UPLOAD FUNCTION ----- */
     function uploadFile(input) {
       if (input.files && input.files[0]) {
         const file = input.files[0];
@@ -567,7 +570,7 @@
       }
     }
 
-    // ----- DARK/LIGHT MODE TOGGLE -----
+    /* ----- DARK/LIGHT MODE TOGGLE ----- */
     function toggleDarkMode() {
       document.body.classList.toggle("dark-mode");
       if (document.body.classList.contains("dark-mode")) {
