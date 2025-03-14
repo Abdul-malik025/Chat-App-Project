@@ -50,62 +50,6 @@
     .btn:hover {
       background: #1d9bee;
     }
-    #searchResults {
-      margin-top: 15px;
-      text-align: left;
-    }
-    #searchResults .user {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-    }
-    #searchResults .user:last-child {
-      border-bottom: none;
-    }
-    #searchResults .user button {
-      float: right;
-      padding: 5px 10px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    #searchResults .user button:hover {
-      background: #1d9bee;
-    }
-    /* Inbox styles */
-    #inboxContainer {
-      margin-top: 20px;
-      text-align: left;
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    #inboxContainer h3 {
-      margin-top: 0;
-      color: #40b3ff;
-    }
-    .inbox-item {
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .inbox-item:last-child {
-      border-bottom: none;
-    }
-    .inbox-item button {
-      padding: 5px 10px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    .inbox-item button:hover {
-      background: #1d9bee;
-    }
   </style>
 </head>
 <body>
@@ -114,20 +58,8 @@
     <div class="dashboard-section">
       <h2>Chat Rooms</h2>
       <p>Join an existing room or create a new one.</p>
+      <!-- This button redirects to the public chat interface (index.html) -->
       <a href="index.html" class="btn">Enter Public Chat</a>
-    </div>
-    <div class="dashboard-section">
-      <h2>Direct Messages</h2>
-      <p>Search for a user to start a private conversation.</p>
-      <input type="text" id="userSearchInput" placeholder="Search users..." style="width:70%; padding:10px; margin-bottom:10px;">
-      <button class="btn" onclick="searchUsers()">Search</button>
-      <div id="searchResults"></div>
-    </div>
-    <div id="inboxContainer">
-      <h3>Inbox Notifications</h3>
-      <div id="inboxList">
-        <!-- Inbox items will be added here -->
-      </div>
     </div>
     <button class="btn" onclick="logoutUser()">Logout</button>
   </div>
@@ -135,10 +67,8 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     let username = "";
-    // Inbox notifications: key is room name, value is count.
-    let inboxNotifications = {};
-
-    // On dashboard load, remove any query parameters to avoid accidental DM popup
+    
+    // On dashboard load, remove any query parameters and check session.
     window.onload = function() {
       if(window.location.search) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -158,78 +88,17 @@
         });
     };
 
-    // Search users using /search-users endpoint.
-    function searchUsers() {
-      const query = document.getElementById("userSearchInput").value.trim();
-      if (!query) {
-        alert("Please enter a search query.");
-        return;
-      }
-      fetch("/search-users?query=" + encodeURIComponent(query))
-        .then(response => response.json())
-        .then(data => {
-          const resultsContainer = document.getElementById("searchResults");
-          resultsContainer.innerHTML = "";
-          if (data.users && data.users.length > 0) {
-            data.users.forEach(user => {
-              const div = document.createElement("div");
-              div.className = "user";
-              // When Message is clicked, generate DM room and redirect to chat.html.
-              div.innerHTML = `<strong>${user.username}</strong> (${user.full_name})
-                                <button onclick="startDM('${user.username}')">Message</button>`;
-              resultsContainer.appendChild(div);
-            });
-          } else {
-            resultsContainer.textContent = "No users found.";
-          }
-        })
-        .catch(error => console.error("Error searching users:", error));
-    }
-
-    // Generate a DM room name by sorting two usernames alphabetically.
-    function generateDMRoomName(user1, user2) {
-      const sorted = [user1, user2].sort();
-      return "dm-" + sorted.join("-");
-    }
-
-    // When the Message button is clicked, generate DM room name and redirect to chat.html.
-    function startDM(recipient) {
-      if (!username) {
-        alert("User not logged in!");
-        return;
-      }
-      const dmRoom = generateDMRoomName(username, recipient);
-      window.location.href = "index.html?room=" + encodeURIComponent(dmRoom);
-    }
-
     function logoutUser() {
-      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
+      fetch("/logout", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" } 
+      })
         .then(response => response.json())
         .then(data => {
           alert(data.message);
           window.location.href = "/";
         })
         .catch(error => console.error("Logout error:", error));
-    }
-
-    // Optional: Inbox functions.
-    function updateInboxUI() {
-      const inboxList = document.getElementById("inboxList");
-      inboxList.innerHTML = "";
-      for (let room in inboxNotifications) {
-        const count = inboxNotifications[room];
-        const div = document.createElement("div");
-        div.className = "inbox-item";
-        div.innerHTML = `Room <strong>${room}</strong>: ${count} new message(s)
-                         <button onclick="openInboxRoom('${room}')">Open</button>`;
-        inboxList.appendChild(div);
-      }
-    }
-
-    function openInboxRoom(room) {
-      window.location.href = "index.html?room=" + encodeURIComponent(room);
-      delete inboxNotifications[room];
-      updateInboxUI();
     }
   </script>
 </body>

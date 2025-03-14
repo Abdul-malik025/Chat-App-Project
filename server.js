@@ -35,7 +35,6 @@ const sessionStore = new MySQLStore({}, db.promise());
 // ====================================================
 // Protect Static Files Middleware
 // ====================================================
-// Whitelist some public paths (e.g., landing page, login, etc.)
 const publicWhitelist = ["/", "/index.html", "/login.html", "/forgot-password.html"];
 app.use((req, res, next) => {
   if (publicWhitelist.includes(req.path)) return next();
@@ -66,7 +65,7 @@ app.use(
   })
 );
 
-// Serve static files from public folder (protected by the above middleware)
+// Serve static files from public folder
 app.use(express.static("public"));
 
 // ====================================================
@@ -321,26 +320,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Modified join room event: if DM room (room starts with "dm-"), skip code validation and load DM history.
+  // Join room event for public chat rooms only.
   socket.on("join room", (data) => {
     const roomName = data.roomName;
     const providedCode = data.code || "";
-    if (roomName.startsWith("dm-")) {
-      socket.join(roomName);
-      console.log(`Socket ${socket.id} joined DM room: ${roomName}`);
-      const query = "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
-      db.query(query, [roomName], (err, results) => {
-        if (err) {
-          console.error("Error fetching DM history:", err);
-          socket.emit("join error", "Error fetching DM history.");
-          return;
-        }
-        socket.emit("joined room", roomName);
-        socket.emit("chat history", results);
-      });
-      return;
-    }
-    // Public room joining with room code validation.
+    // No special DM branch is present now.
     const roomQuery = "SELECT room_code FROM rooms WHERE room_name = ?";
     db.query(roomQuery, [roomName], (err, results) => {
       if (err) {
@@ -383,7 +367,7 @@ io.on("connection", (socket) => {
     socket.to(room).emit("stop typing", { username });
   });
 
-  // Handle incoming chat messages (public or DM).
+  // Handle incoming chat messages (for public chat rooms).
   socket.on("chat message", (data) => {
     const { username, message, room, media, mediaType } = data;
     if (!username || (!message && !media) || !room) return;
@@ -462,14 +446,6 @@ io.on("connection", (socket) => {
         });
       });
     });
-  });
-
-  // Handle private messages (if using a separate event, otherwise DM rooms use chat message)
-  socket.on("private message", (data) => {
-    const { to, from, message, media, mediaType } = data;
-    if (!to || !from || (!message && !media)) return;
-    console.log(`Private message from ${from} to ${to}: ${message}`);
-    io.to(to).emit("private message", { from, message, media, mediaType });
   });
 
   socket.on("disconnect", () => {
