@@ -106,76 +106,6 @@
     .inbox-item button:hover {
       background: #1d9bee;
     }
-    /* DM Chat Modal Styles */
-    #dmChatModal {
-      display: none; /* Hidden by default */
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
-    }
-    #dmChatModal .modal-content {
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      width: 350px;
-      display: flex;
-      flex-direction: column;
-      max-height: 80vh;
-    }
-    #dmChatModal .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-    }
-    #dmChatModal .modal-header h3 {
-      margin: 0;
-      color: #40b3ff;
-    }
-    #dmChatModal .close-btn {
-      background: transparent;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-    }
-    #dmMessagesContainer {
-      flex: 1;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      padding: 10px;
-      border-radius: 5px;
-      margin-bottom: 10px;
-    }
-    #dmChatModal .dm-input-container {
-      display: flex;
-    }
-    #dmChatModal .dm-input-container input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px 0 0 5px;
-      font-size: 14px;
-    }
-    #dmChatModal .dm-input-container button {
-      padding: 10px 15px;
-      border: none;
-      background: #40b3ff;
-      color: #fff;
-      border-radius: 0 5px 5px 0;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #dmChatModal .dm-input-container button:hover {
-      background: #1d9bee;
-    }
   </style>
 </head>
 <body>
@@ -184,7 +114,7 @@
     <div class="dashboard-section">
       <h2>Chat Rooms</h2>
       <p>Join an existing room or create a new one.</p>
-      <a href="chat.html" class="btn">Enter Chat Rooms</a>
+      <a href="index.html" class="btn">Enter Public Chat</a>
     </div>
     <div class="dashboard-section">
       <h2>Direct Messages</h2>
@@ -202,31 +132,13 @@
     <button class="btn" onclick="logoutUser()">Logout</button>
   </div>
 
-  <!-- DM Chat Modal -->
-  <div id="dmChatModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>DM with <span id="dmRecipientName"></span></h3>
-        <button class="close-btn" onclick="closeDmChatModal()">X</button>
-      </div>
-      <div id="dmMessagesContainer"></div>
-      <div class="dm-input-container">
-        <input type="text" id="dmInput" placeholder="Type a message...">
-        <button onclick="sendDmMessage()">Send</button>
-      </div>
-    </div>
-  </div>
-
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
     let username = "";
-    // currentDMRoom is not used now because DM messaging uses private message events.
-    let dmRecipient = "";
-    // Inbox notifications: key is DM room (generated name), value is count.
+    // Inbox notifications: key is room name, value is count.
     let inboxNotifications = {};
 
-    // Check session on dashboard load.
+    // On dashboard load, check session.
     window.onload = function() {
       fetch("/me")
         .then(response => response.json())
@@ -235,8 +147,6 @@
             window.location.href = "/";
           } else {
             username = data.user.username;
-            // Register for private messages (join personal room).
-            socket.emit("register user", { username });
           }
         })
         .catch(err => {
@@ -261,8 +171,9 @@
             data.users.forEach(user => {
               const div = document.createElement("div");
               div.className = "user";
+              // Change "openDmChatModal" to "startDM" for redirection.
               div.innerHTML = `<strong>${user.username}</strong> (${user.full_name})
-                                <button onclick="openDmChatModal('${user.username}')">Message</button>`;
+                                <button onclick="startDM('${user.username}')">Message</button>`;
               resultsContainer.appendChild(div);
             });
           } else {
@@ -272,76 +183,33 @@
         .catch(error => console.error("Error searching users:", error));
     }
 
-    // Generate a DM room name by sorting usernames alphabetically.
+    // Generate a DM room name by sorting two usernames alphabetically.
     function generateDMRoomName(user1, user2) {
       const sorted = [user1, user2].sort();
       return "dm-" + sorted.join("-");
     }
 
-    // Open the DM Chat Modal.
-    function openDmChatModal(recipient) {
-      dmRecipient = recipient;
-      document.getElementById("dmRecipientName").textContent = recipient;
-      document.getElementById("dmMessagesContainer").innerHTML = "";
-      // For DM messaging, we now use the private message event.
-      // Clear any existing inbox notifications for this DM room.
-      const dmRoom = generateDMRoomName(username, recipient);
-      delete inboxNotifications[dmRoom];
-      updateInboxUI();
-      // Open DM modal.
-      document.getElementById("dmChatModal").style.display = "flex";
-    }
-
-    function closeDmChatModal() {
-      document.getElementById("dmChatModal").style.display = "none";
-      // Optionally, clear dmRecipient.
-      dmRecipient = "";
-    }
-
-    // Send a DM message using the "private message" event.
-    function sendDmMessage() {
-      const dmMessage = document.getElementById("dmInput").value.trim();
-      if (!dmMessage) {
-        alert("Please type a message.");
+    // Redirect to chat.html with the DM room as a query parameter.
+    function startDM(recipient) {
+      if (!username) {
+        alert("User not logged in!");
         return;
       }
-      // Emit private message event.
-      socket.emit("private message", { to: dmRecipient, from: username, message: dmMessage });
-      // Append your own message in the modal.
-      appendDmMessage(username, dmMessage, null, null, "local-" + new Date().getTime());
-      document.getElementById("dmInput").value = "";
+      const dmRoom = generateDMRoomName(username, recipient);
+      window.location.href = "index.html?room=" + encodeURIComponent(dmRoom);
     }
 
-    // Append a DM message in the DM modal.
-    function appendDmMessage(sender, text, media, mediaType, messageId) {
-      const container = document.getElementById("dmMessagesContainer");
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("dm-message");
-      msgDiv.setAttribute("data-message-id", messageId);
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      container.appendChild(msgDiv);
-      container.scrollTop = container.scrollHeight;
+    function logoutUser() {
+      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          window.location.href = "/";
+        })
+        .catch(error => console.error("Logout error:", error));
     }
 
-    // Listen for incoming private messages.
-    socket.on("private message", (data) => {
-      console.log("Received private message:", data);
-      // Generate DM room name from sender and recipient.
-      const dmRoom = generateDMRoomName(username, data.from);
-      if (document.getElementById("dmChatModal").style.display === "flex" && dmRecipient === data.from) {
-        // If DM modal is open for this conversation, append the message.
-        appendDmMessage(data.from, data.message, data.media, data.mediaType, data.id);
-      } else {
-        // Otherwise, update inbox notifications.
-        if (!inboxNotifications[dmRoom]) {
-          inboxNotifications[dmRoom] = 0;
-        }
-        inboxNotifications[dmRoom]++;
-        updateInboxUI();
-      }
-    });
-
-    // Update the inbox UI.
+    // Optional: Inbox functions.
     function updateInboxUI() {
       const inboxList = document.getElementById("inboxList");
       inboxList.innerHTML = "";
@@ -355,30 +223,10 @@
       }
     }
 
-    // Open a room from the inbox.
     function openInboxRoom(room) {
-      if (room.startsWith("dm-")) {
-        // Parse room name to get the other participant.
-        const parts = room.substring(3).split("-");
-        const recipient = parts.find(name => name !== username);
-        openDmChatModal(recipient);
-      } else {
-        // For public rooms, redirect to chat.html.
-        window.location.href = "chat.html?room=" + encodeURIComponent(room);
-      }
-      // Clear notifications for that room.
+      window.location.href = "chat.html?room=" + encodeURIComponent(room);
       delete inboxNotifications[room];
       updateInboxUI();
-    }
-
-    function logoutUser() {
-      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
-        .then(response => response.json())
-        .then(data => {
-          alert(data.message);
-          window.location.href = "/";
-        })
-        .catch(error => console.error("Logout error:", error));
     }
   </script>
 </body>
