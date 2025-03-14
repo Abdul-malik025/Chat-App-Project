@@ -382,14 +382,25 @@ io.on("connection", (socket) => {
   socket.on("join room", (data) => {
     const roomName = data.roomName;
     const providedCode = data.code || "";
-    // If it's a DM room, room name starts with "dm-", skip code validation.
+    // If it's a DM room (room name starts with "dm-"), skip code validation and load history.
     if (roomName.startsWith("dm-")) {
       socket.join(roomName);
       console.log(`Socket ${socket.id} joined DM room: ${roomName}`);
-      socket.emit("joined room", roomName);
+      // Query the messages table for DM history.
+      const query = "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
+      db.query(query, [roomName], (err, results) => {
+        if (err) {
+          console.error("Error fetching DM history:", err);
+          socket.emit("join error", "Error fetching DM history.");
+          return;
+        }
+        socket.emit("joined room", roomName);
+        // Send the DM chat history to the client.
+        socket.emit("chat history", results);
+      });
       return;
     }
-    // Otherwise, standard room joining with code validation.
+    // Else, process public room joining (with room code validation)...
     const roomQuery = "SELECT room_code FROM rooms WHERE room_name = ?";
     db.query(roomQuery, [roomName], (err, results) => {
       if (err) {
@@ -419,7 +430,7 @@ io.on("connection", (socket) => {
       });
     });
   });
-
+  
   // Listen for typing events
   socket.on("typing", (data) => {
     const { room, username } = data;
