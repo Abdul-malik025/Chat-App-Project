@@ -32,36 +32,10 @@ const SESSION_SECRET = "chatapp";
 // Use MySQL session store for production
 const sessionStore = new MySQLStore({}, db.promise());
 
-// ====================================================
-// Protect Static Files Middleware
-// ====================================================
-// Define a whitelist of public routes that are allowed without login.
-const publicWhitelist = [
-  "/",
-  "/index.html",
-  "/login.html",
-  "/forgot-password.html",
-  "/style.css",
-];
-// Middleware: for any request that is not whitelisted, check if user is logged in.
-app.use((req, res, next) => {
-  // Using req.path ensures we ignore any query parameters.
-  if (publicWhitelist.includes(req.path)) {
-    return next();
-  }
-  if (req.session && req.session.user) {
-    return next();
-  }
-  // If not logged in, redirect to landing page.
-  return res.redirect("/");
-});
-
-// ====================================================
-// Standard Middleware Setup
-// ====================================================
+// Middleware for parsing bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.set("trust proxy", 1); // For sessions on some platforms
+app.set("trust proxy", 1); // Required for sessions on some platforms
 
 // Session setup
 app.use(
@@ -72,19 +46,19 @@ app.use(
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      secure: true, // Set true if using HTTPS
+      secure: true, // Set to true if using HTTPS
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     },
   })
 );
 
-// Serve static files from the public folder (this is protected by our middleware above)
+// Serve static files from public folder
 app.use(express.static("public"));
 
-// ====================================================
-// File Upload Setup (Multer)
-// ====================================================
+//////////////////////////////
+// FILE UPLOAD SETUP (Multer)
+//////////////////////////////
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "public/uploads/");
@@ -97,8 +71,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// File upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+  if (!req.file)
+    return res.status(400).json({ message: "No file uploaded." });
   const fileUrl = `/uploads/${req.file.filename}`;
   let mediaType = "";
   if (req.file.mimetype.startsWith("image/")) mediaType = "image";
@@ -111,9 +87,9 @@ app.post("/upload", upload.single("file"), (req, res) => {
   });
 });
 
-// ====================================================
-// Authentication Endpoints
-// ====================================================
+//////////////////////////////
+// AUTHENTICATION ENDPOINTS
+//////////////////////////////
 
 // Registration endpoint – accepts full_name and email.
 app.post("/register", (req, res) => {
@@ -132,21 +108,19 @@ app.post("/register", (req, res) => {
     bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({ message: "Error processing password." });
+        return res
+          .status(500)
+          .json({ message: "Error processing password." });
       }
       const query =
         "INSERT INTO users (username, password, full_name, email) VALUES (?, ?, ?, ?)";
-      db.query(
-        query,
-        [username, hashedPassword, full_name, email],
-        (err, result) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).json({ message: "Error registering user." });
-          }
-          return res.status(200).json({ message: "Registration successful!" });
+      db.query(query, [username, hashedPassword, full_name, email], (err, result) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ message: "Error registering user." });
         }
-      );
+        return res.status(200).json({ message: "Registration successful!" });
+      });
     });
   });
 });
@@ -155,9 +129,7 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
-    return res
-      .status(400)
-      .json({ message: "Email and password are required." });
+    return res.status(400).json({ message: "Email and password are required." });
   const query = "SELECT * FROM users WHERE email = ?";
   db.query(query, [email], (err, results) => {
     if (err) {
@@ -170,15 +142,9 @@ app.post("/login", (req, res) => {
     bcrypt.compare(password, user.password, (err, match) => {
       if (err || !match)
         return res.status(401).json({ message: "Incorrect password." });
-      req.session.user = {
-        username: user.username,
-        full_name: user.full_name,
-        email: user.email,
-      };
+      req.session.user = { username: user.username, full_name: user.full_name, email: user.email };
       console.log("User logged in:", req.session.user);
-      return res
-        .status(200)
-        .json({ message: "Login successful!", user: req.session.user });
+      return res.status(200).json({ message: "Login successful!", user: req.session.user });
     });
   });
 });
@@ -202,9 +168,9 @@ app.get("/me", (req, res) => {
   return res.status(200).json({ loggedIn: false });
 });
 
-// ====================================================
-// Profile Endpoints
-// ====================================================
+//////////////////////////////
+// PROFILE ENDPOINTS
+//////////////////////////////
 
 // Get user profile
 app.get("/profile", (req, res) => {
@@ -212,8 +178,7 @@ app.get("/profile", (req, res) => {
     return res.status(401).json({ message: "User not logged in." });
   }
   const username = req.session.user.username;
-  const query =
-    "SELECT username, full_name, email, profile_picture FROM users WHERE username = ?";
+  const query = "SELECT username, full_name, email, profile_picture FROM users WHERE username = ?";
   db.query(query, [username], (err, results) => {
     if (err) {
       console.error("Error fetching profile:", err);
@@ -234,30 +199,23 @@ app.put("/profile", (req, res) => {
   const username = req.session.user.username;
   const { full_name, email, profile_picture } = req.body;
   if (!full_name || !email) {
-    return res
-      .status(400)
-      .json({ message: "Full name and email are required." });
+    return res.status(400).json({ message: "Full name and email are required." });
   }
-  const updateQuery =
-    "UPDATE users SET full_name = ?, email = ?, profile_picture = ? WHERE username = ?";
-  db.query(
-    updateQuery,
-    [full_name, email, profile_picture || null, username],
-    (err, result) => {
-      if (err) {
-        console.error("Error updating profile:", err);
-        return res.status(500).json({ message: "Error updating profile." });
-      }
-      req.session.user.full_name = full_name;
-      req.session.user.email = email;
-      return res.status(200).json({ message: "Profile updated successfully!" });
+  const updateQuery = "UPDATE users SET full_name = ?, email = ?, profile_picture = ? WHERE username = ?";
+  db.query(updateQuery, [full_name, email, profile_picture || null, username], (err, result) => {
+    if (err) {
+      console.error("Error updating profile:", err);
+      return res.status(500).json({ message: "Error updating profile." });
     }
-  );
+    req.session.user.full_name = full_name;
+    req.session.user.email = email;
+    return res.status(200).json({ message: "Profile updated successfully!" });
+  });
 });
 
-// ====================================================
-// Room Endpoints
-// ====================================================
+//////////////////////////////
+// ROOM ENDPOINTS
+//////////////////////////////
 
 // List available rooms
 app.get("/rooms", (req, res) => {
@@ -280,9 +238,7 @@ app.post("/rooms", (req, res) => {
     return res.status(400).json({ message: "Room name is required." });
   const created_by = req.session?.user?.username;
   if (!created_by)
-    return res
-      .status(401)
-      .json({ message: "You must be logged in to create a room." });
+    return res.status(401).json({ message: "You must be logged in to create a room." });
   console.log("Creating room by user:", created_by);
   const checkUserQuery = "SELECT * FROM users WHERE username = ?";
   db.query(checkUserQuery, [created_by], (err, userResults) => {
@@ -292,25 +248,16 @@ app.post("/rooms", (req, res) => {
     }
     if (userResults.length === 0) {
       console.error(`User ${created_by} does not exist in users table.`);
-      return res
-        .status(400)
-        .json({ message: "User does not exist. Please log in." });
+      return res.status(400).json({ message: "User does not exist. Please log in." });
     }
-    const insertRoomQuery =
-      "INSERT INTO rooms (room_name, created_by, room_code) VALUES (?, ?, ?)";
-    db.query(
-      insertRoomQuery,
-      [room_name, created_by, room_code || null],
-      (err, result) => {
-        if (err) {
-          console.error("Error creating room:", err);
-          return res.status(500).json({ message: "Error creating room." });
-        }
-        res
-          .status(200)
-          .json({ message: "Room created successfully!", room_name });
+    const insertRoomQuery = "INSERT INTO rooms (room_name, created_by, room_code) VALUES (?, ?, ?)";
+    db.query(insertRoomQuery, [room_name, created_by, room_code || null], (err, result) => {
+      if (err) {
+        console.error("Error creating room:", err);
+        return res.status(500).json({ message: "Error creating room." });
       }
-    );
+      res.status(200).json({ message: "Room created successfully!", room_name });
+    });
   });
 });
 
@@ -331,9 +278,7 @@ app.get("/roomAdmin", (req, res) => {
   });
 });
 
-// ====================================================
-// Search Users Endpoint (for Dashboard DM search)
-// ====================================================
+// Search users endpoint
 app.get("/search-users", (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ message: "User not logged in." });
@@ -350,38 +295,35 @@ app.get("/search-users", (req, res) => {
       AND username != ?
   `;
   const likeQuery = `%${queryParam}%`;
-  db.query(
-    searchQuery,
-    [likeQuery, likeQuery, likeQuery, currentUser],
-    (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: "Database error." });
-      }
-      return res.status(200).json({ users: results });
+  db.query(searchQuery, [likeQuery, likeQuery, likeQuery, currentUser], (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Database error." });
     }
-  );
+    return res.status(200).json({ users: results });
+  });
 });
 
-// ====================================================
+//////////////////////////////
 // NODEMAILER & PASSWORD RESET
-// ====================================================
+//////////////////////////////
 const transporter = nodemailer.createTransport({
   host: "smtp.office365.com",
   port: 587,
   secure: false,
   auth: {
     user: "jerry_2044@outlook.com",
-    pass: "ilovemymom12345",
+    pass: "ilovemymom12345"
   },
   tls: {
-    ciphers: "SSLv3",
-  },
+    ciphers: "SSLv3"
+  }
 });
 
 app.post("/reset-password-request", (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ message: "Email is required." });
+  if (!email)
+    return res.status(400).json({ message: "Email is required." });
   const query = "SELECT * FROM users WHERE email = ?";
   db.query(query, [email], (err, results) => {
     if (err) {
@@ -393,8 +335,7 @@ app.post("/reset-password-request", (req, res) => {
     const user = results[0];
     const token = crypto.randomBytes(20).toString("hex");
     const expires = new Date(Date.now() + 3600000);
-    const updateQuery =
-      "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?";
+    const updateQuery = "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?";
     db.query(updateQuery, [token, expires, email], (err, result) => {
       if (err) {
         console.error("DB error:", err);
@@ -404,30 +345,28 @@ app.post("/reset-password-request", (req, res) => {
       const mailOptions = {
         from: '"ChatApp Support" <jerry_2044@outlook.com>',
         to: user.email || email,
-        subject: "Password Reset Request",
+        subject: 'Password Reset Request',
         text: `You have requested a password reset. Please click on the following link to reset your password: ${resetLink}. This link is valid for 1 hour.`,
         html: `<p>You have requested a password reset.</p>
                <p>Please click on the link below to reset your password:</p>
                <p><a href="${resetLink}">${resetLink}</a></p>
-               <p>This link is valid for 1 hour.</p>`,
+               <p>This link is valid for 1 hour.</p>`
       };
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-          console.error("Error sending email:", error);
+          console.error('Error sending email:', error);
           return res.status(500).json({ message: "Error sending email." });
         }
-        console.log("Password reset email sent:", info.response);
-        return res
-          .status(200)
-          .json({ message: "Password reset email has been sent." });
+        console.log('Password reset email sent:', info.response);
+        return res.status(200).json({ message: "Password reset email has been sent." });
       });
     });
   });
 });
 
-// ====================================================
+//////////////////////////////
 // SOCKET.IO HANDLING
-// ====================================================
+//////////////////////////////
 io.on("connection", (socket) => {
   console.log("A user connected: " + socket.id);
 
@@ -443,7 +382,7 @@ io.on("connection", (socket) => {
   socket.on("join room", (data) => {
     const roomName = data.roomName;
     const providedCode = data.code || "";
-    // For DM rooms (names starting with "dm-"), skip code validation.
+    // If it's a DM room, room name starts with "dm-", skip code validation.
     if (roomName.startsWith("dm-")) {
       socket.join(roomName);
       console.log(`Socket ${socket.id} joined DM room: ${roomName}`);
@@ -470,8 +409,7 @@ io.on("connection", (socket) => {
       socket.join(roomName);
       console.log(`Socket ${socket.id} joined room: ${roomName}`);
       socket.emit("joined room", roomName);
-      const query =
-        "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
+      const query = "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
       db.query(query, [roomName], (err, results) => {
         if (err) {
           console.error("Error fetching chat history for room:", err);
@@ -499,38 +437,22 @@ io.on("connection", (socket) => {
     const { username, message, room, media, mediaType } = data;
     if (!username || (!message && !media) || !room) return;
     if (media) {
-      const query =
-        "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
-      db.query(
-        query,
-        [room, username, message || "", media, mediaType],
-        (err, result) => {
-          if (err) {
-            console.error("Error saving media message:", err);
-            return;
-          }
-          io.to(room).emit("chat message", {
-            username,
-            message,
-            media,
-            mediaType,
-            id: result.insertId,
-          });
+      const query = "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
+      db.query(query, [room, username, message || "", media, mediaType], (err, result) => {
+        if (err) {
+          console.error("Error saving media message:", err);
+          return;
         }
-      );
+        io.to(room).emit("chat message", { username, message, media, mediaType, id: result.insertId });
+      });
     } else {
-      const query =
-        "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
+      const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
       db.query(query, [room, username, message], (err, result) => {
         if (err) {
           console.error("Error saving message:", err);
           return;
         }
-        io.to(room).emit("chat message", {
-          username,
-          message,
-          id: result.insertId,
-        });
+        io.to(room).emit("chat message", { username, message, id: result.insertId });
       });
     }
   });
@@ -547,10 +469,7 @@ io.on("connection", (socket) => {
       }
       if (results.length === 0) return;
       if (results[0].created_by !== username) {
-        socket.emit(
-          "admin error",
-          "Only the room administrator can delete messages."
-        );
+        socket.emit("admin error", "Only the room administrator can delete messages.");
         return;
       }
       const deleteQuery = "DELETE FROM messages WHERE id = ?";
@@ -576,27 +495,20 @@ io.on("connection", (socket) => {
       }
       if (results.length === 0) return;
       if (results[0].created_by !== username) {
-        socket.emit(
-          "admin error",
-          "Only the room creator can delete this room."
-        );
+        socket.emit("admin error", "Only the room creator can delete this room.");
         return;
       }
       db.query("DELETE FROM messages WHERE room = ?", [room], (err, result) => {
         if (err) {
           console.error("Error deleting messages in room:", err);
         }
-        db.query(
-          "DELETE FROM rooms WHERE room_name = ?",
-          [room],
-          (err, result) => {
-            if (err) {
-              console.error("Error deleting room:", err);
-              return;
-            }
-            io.to(room).emit("room deleted", { room });
+        db.query("DELETE FROM rooms WHERE room_name = ?", [room], (err, result) => {
+          if (err) {
+            console.error("Error deleting room:", err);
+            return;
           }
-        );
+          io.to(room).emit("room deleted", { room });
+        });
       });
     });
   });
@@ -614,9 +526,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// ====================================================
-// Start the Server
-// ====================================================
+// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
