@@ -1,106 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard - Chat App</title>
-  <link rel="stylesheet" href="style.css" />
-  <style>
-    /* Dashboard Styles */
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f7f7f7;
-    }
-    #dashboard-container {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    #dashboard-container h1 {
-      margin-bottom: 20px;
-      color: #333;
-    }
-    .dashboard-section {
-      margin: 20px 0;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-    .dashboard-section h2 {
-      margin-bottom: 15px;
-      color: #40b3ff;
-    }
-    .btn {
-      display: inline-block;
-      padding: 12px 25px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.3s;
-    }
-    .btn:hover {
-      background: #1d9bee;
-    }
-  </style>
-</head>
-<body>
-  <div id="dashboard-container">
-    <h1>Dashboard</h1>
-    <div class="dashboard-section">
-      <h2>Chat Rooms</h2>
-      <p>Join an existing room or create a new one.</p>
-      <!-- This button redirects to the public chat interface (index.html) -->
-      <a href="index.html" class="btn">Enter Public Chat</a><br>
-      <a href="profile.html" class="btn">Change Profile</a>
-    </div>
-    <button class="btn" onclick="logoutUser()">Logout</button>
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    let username = "";
-    
-    // On dashboard load, remove any query parameters and check session.
-    window.onload = function() {
-      if(window.location.search) {
-        window.history.replaceState({}, document.title, window.location.pathname);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Chat App</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* Dashboard Styles */
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #f7f7f7;
       }
-      fetch("/me")
-        .then(response => response.json())
-        .then(data => {
-          if (!data.loggedIn) {
-            window.location.href = "/";
-          } else {
-            username = data.user.username;
-          }
-        })
-        .catch(err => {
-          console.error("Error checking session:", err);
-          window.location.href = "/";
-        });
-    };
+      #dashboard-container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      #dashboard-container h1 {
+        margin-bottom: 20px;
+        color: #333;
+      }
+      .dashboard-section {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .dashboard-section h2 {
+        margin-bottom: 15px;
+        color: #40b3ff;
+      }
+      .btn {
+        display: inline-block;
+        padding: 12px 25px;
+        background: #40b3ff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.3s;
+      }
+      .btn:hover {
+        background: #1d9bee;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="dashboard-container">
+      <h1>Dashboard</h1>
+      <div class="dashboard-section">
+        <h2>Chat Rooms</h2>
+        <p>Join an existing room or create a new one.</p>
+        <!-- This button redirects to the public chat interface (index.html) -->
+        <a href="index.html" class="btn">Enter Public Chat</a>
+      </div>
+      <div><a href="profile.html" class="btn">Change Profile</a></div>
+      <button class="btn" onclick="logoutUser()">Logout</button>
+    </div>
 
-    function logoutUser() {
-      fetch("/logout", { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" } 
-      })
-        .then(response => response.json())
-        .then(data => {
-          alert(data.message);
-          window.location.href = "/";
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      let username = "";
+
+      // On dashboard load, remove any query parameters and check session.
+      window.onload = function () {
+        if (window.location.search) {
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+        }
+        fetch("/me")
+          .then((response) => response.json())
+          .then((data) => {
+            if (!data.loggedIn) {
+              window.location.href = "/";
+            } else {
+              username = data.user.username;
+            }
+          })
+          .catch((err) => {
+            console.error("Error checking session:", err);
+            window.location.href = "/";
+          });
+      };
+
+      function logoutUser() {
+        fetch("/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
         })
-        .catch(error => console.error("Logout error:", error));
-    }
-  </script>
-</body>
+          .then((response) => response.json())
+          .then((data) => {
+            alert(data.message);
+            window.location.href = "/";
+          })
+          .catch((error) => console.error("Logout error:", error));
+      }
+    </script>
+  </body>
 </html>
