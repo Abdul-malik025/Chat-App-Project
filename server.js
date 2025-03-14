@@ -432,30 +432,33 @@ io.on("connection", (socket) => {
     socket.to(room).emit("stop typing", { username });
   });
 
-  // Handle incoming chat messages (with optional media)
-  socket.on("chat message", (data) => {
-    const { username, message, room, media, mediaType } = data;
-    if (!username || (!message && !media) || !room) return;
-    if (media) {
-      const query = "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
-      db.query(query, [room, username, message || "", media, mediaType], (err, result) => {
-        if (err) {
-          console.error("Error saving media message:", err);
-          return;
-        }
-        io.to(room).emit("chat message", { username, message, media, mediaType, id: result.insertId });
-      });
-    } else {
-      const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
-      db.query(query, [room, username, message], (err, result) => {
-        if (err) {
-          console.error("Error saving message:", err);
-          return;
-        }
-        io.to(room).emit("chat message", { username, message, id: result.insertId });
-      });
-    }
-  });
+ // Handle incoming chat messages (with optional media)
+socket.on("chat message", (data) => {
+  const { username, message, room, media, mediaType } = data;
+  if (!username || (!message && !media) || !room) return;
+  if (media) {
+    const query = "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
+    db.query(query, [room, username, message || "", media, mediaType], (err, result) => {
+      if (err) {
+        console.error("Error saving media message:", err);
+        return;
+      }
+      // Emit room property too!
+      io.to(room).emit("chat message", { username, message, media, mediaType, id: result.insertId, room });
+    });
+  } else {
+    const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
+    db.query(query, [room, username, message], (err, result) => {
+      if (err) {
+        console.error("Error saving message:", err);
+        return;
+      }
+      // Emit room property as well.
+      io.to(room).emit("chat message", { username, message, id: result.insertId, room });
+    });
+  }
+});
+
 
   // Handle deletion of a single message by room admin
   socket.on("delete message", (data) => {
