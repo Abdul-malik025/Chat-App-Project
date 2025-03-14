@@ -334,22 +334,22 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: loginEmail, password: loginPassword })
         })
-          .then(response => response.json())
-          .then(data => {
-            if (data.message === "Login successful!") {
-              username = data.user.username;
-              document.getElementById("authContainer").style.display = "none";
-              document.getElementById("roomContainer").style.display = "block";
-              fetchRooms();
-            } else {
-              alert(data.message);
-            }
-          })
-          .catch(error => console.error("Error:", error));
+        .then(response => response.json())
+        .then(data => {
+          if (data.message === "Login successful!") {
+            username = data.user.username;
+            // Redirect to dashboard after successful login.
+            window.location.href = "dashboard.html";
+          } else {
+            alert(data.message);
+          }
+        })
+        .catch(error => console.error("Error:", error));
       } else {
         alert("Please fill in all fields.");
       }
     }
+    
 
     function registerUser() {
       const fullName = document.getElementById("signupFullName").value.trim();
