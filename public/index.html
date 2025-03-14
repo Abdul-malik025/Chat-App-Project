@@ -3,204 +3,173 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard - Chat App</title>
+  <title>Chat App</title>
   <link rel="stylesheet" href="style.css" />
+  <!-- Additional styling for the join room modal -->
   <style>
-    /* Dashboard Styles */
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f7f7f7;
-    }
-    #dashboard-container {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    #dashboard-container h1 {
-      margin-bottom: 20px;
-      color: #333;
-    }
-    .dashboard-section {
-      margin: 20px 0;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-    .dashboard-section h2 {
-      margin-bottom: 15px;
-      color: #40b3ff;
-    }
-    .btn {
-      display: inline-block;
-      padding: 12px 25px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.3s;
-    }
-    .btn:hover {
-      background: #1d9bee;
-    }
-    #searchResults {
-      margin-top: 15px;
-      text-align: left;
-    }
-    #searchResults .user {
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-    }
-    #searchResults .user:last-child {
-      border-bottom: none;
-    }
-    #searchResults .user button {
-      float: right;
-      padding: 5px 10px;
-      background: #40b3ff;
-      color: #fff;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    #searchResults .user button:hover {
-      background: #1d9bee;
-    }
-    /* Inbox styles */
-    #inboxContainer {
-      margin-top: 20px;
-      text-align: left;
-      border: 1px solid #ddd;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    #inboxContainer h3 {
-      margin-top: 0;
-      color: #40b3ff;
-    }
-    .inbox-item {
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-    }
-    .inbox-item:last-child {
-      border-bottom: none;
-    }
-    /* DM Chat Modal Styles */
-    #dmChatModal {
-      display: none; /* Hidden by default */
+    /* Modal overlay for entering room code when joining a room */
+    #joinRoomModal {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 300;
-      display: flex;
+      display: none; /* Hidden by default */
+      background: rgba(0, 0, 0, 0.5);
       align-items: center;
       justify-content: center;
+      z-index: 200;
     }
-    #dmChatModal .modal-content {
+    #joinRoomModal .modal-content {
       background: #fff;
       padding: 20px;
       border-radius: 8px;
-      width: 350px;
-      display: flex;
-      flex-direction: column;
-      max-height: 80vh;
+      width: 80%;
+      max-width: 300px;
+      text-align: center;
     }
-    #dmChatModal .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-    }
-    #dmChatModal .modal-header h3 {
-      margin: 0;
-      color: #40b3ff;
-    }
-    #dmChatModal .close-btn {
-      background: transparent;
-      border: none;
+    #joinRoomModal .modal-content h2 {
+      margin-bottom: 15px;
       font-size: 18px;
-      cursor: pointer;
+      color: #333;
     }
-    #dmMessagesContainer {
-      flex: 1;
-      overflow-y: auto;
-      border: 1px solid #ddd;
+    #joinRoomModal .modal-content input {
+      width: 100%;
       padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
       border-radius: 5px;
-      margin-bottom: 10px;
-    }
-    #dmChatModal .dm-input-container {
-      display: flex;
-    }
-    #dmChatModal .dm-input-container input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px 0 0 5px;
       font-size: 14px;
     }
-    #dmChatModal .dm-input-container button {
-      padding: 10px 15px;
-      border: none;
+    #joinRoomModal .modal-content button {
+      padding: 10px 20px;
       background: #40b3ff;
       color: #fff;
-      border-radius: 0 5px 5px 0;
-      cursor: pointer;
+      border: none;
+      border-radius: 5px;
       font-size: 14px;
+      cursor: pointer;
     }
-    #dmChatModal .dm-input-container button:hover {
+    #joinRoomModal .modal-content button:hover {
       background: #1d9bee;
     }
   </style>
 </head>
 <body>
-  <div id="dashboard-container">
-    <h1>Dashboard</h1>
-    <div class="dashboard-section">
-      <h2>Chat Rooms</h2>
-      <p>Join an existing room or create a new one.</p>
-      <a href="chat.html" class="btn">Enter Chat Rooms</a>
+  <!-- ===== AUTH SCREEN (Login/Signup) ===== -->
+  <div class="background" id="authContainer">
+    <div class="chat-bubble">
+      <span>Chat</span>
     </div>
-    <div class="dashboard-section">
-      <h2>Direct Messages</h2>
-      <p>Search for a user to start a private conversation.</p>
-      <input type="text" id="userSearchInput" placeholder="Search users..." style="width:70%; padding:10px; margin-bottom:10px;">
-      <button class="btn" onclick="searchUsers()">Search</button>
-      <div id="searchResults"></div>
-    </div>
-    <div id="inboxContainer">
-      <h3>Inbox Notifications</h3>
-      <div id="inboxList">
-        <!-- Dynamic inbox items will appear here -->
+    <div class="auth-container">
+      <!-- Login Card -->
+      <div class="auth-card" id="loginCard">
+        <h2>Login</h2>
+        <form onsubmit="event.preventDefault(); loginUser();">
+          <div class="input-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" placeholder="Enter email" required />
+          </div>
+          <div class="input-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" required />
+          </div>
+          <button type="submit" class="auth-btn">Sign In</button>
+          <a href="forgot-password.html" class="forgot-link">Forgot your password?</a>
+        </form>
+        <p class="switch-link">
+          Don't have an account?
+          <a href="#" onclick="showSignup()">Sign Up</a>
+        </p>
+      </div>
+
+      <!-- Signup Card (hidden by default) -->
+      <div class="auth-card" id="signupCard" style="display: none;">
+        <h2>Sign Up</h2>
+        <form onsubmit="event.preventDefault(); registerUser();">
+          <div class="input-group">
+            <label for="signupFullName">Full Name</label>
+            <input type="text" id="signupFullName" placeholder="Enter your full name" required />
+          </div>
+          <div class="input-group">
+            <label for="signupEmail">Email</label>
+            <input type="email" id="signupEmail" placeholder="Enter your email" required />
+          </div>
+          <div class="input-group">
+            <label for="signupUsername">Username</label>
+            <input type="text" id="signupUsername" placeholder="Choose a username" required />
+          </div>
+          <div class="input-group">
+            <label for="signupPassword">Password</label>
+            <input type="password" id="signupPassword" placeholder="Create a password" required />
+          </div>
+          <button type="submit" class="auth-btn">Register</button>
+        </form>
+        <p class="switch-link">
+          Already have an account?
+          <a href="#" onclick="showLogin()">Login</a>
+        </p>
       </div>
     </div>
-    <button class="btn" onclick="logoutUser()">Logout</button>
   </div>
 
-  <!-- DM Chat Modal -->
-  <div id="dmChatModal">
+  <!-- ===== ROOM SELECTION SCREEN ===== -->
+  <div id="roomContainer" class="container" style="display: none;">
+    <div class="room-card">
+      <h2>Select a Room</h2>
+      <div class="create-room">
+        <input id="newRoomInput" type="text" placeholder="Enter new room name" />
+        <!-- New input field for room code; it is now required -->
+        <input id="newRoomCode" type="text" placeholder="Enter room code" />
+        <button onclick="createRoom()">Create Room</button>
+      </div>
+      <h3>Or join an existing room:</h3>
+      <ul id="roomList"></ul>
+      <button class="logout-button" onclick="logoutUser()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ===== FULL-SCREEN CHAT SCREEN ===== -->
+  <!-- This container is used for both public and DM chats -->
+  <div id="chatContainer" style="display: none;">
+    <div class="chat-card">
+      <div class="chat-header">
+        <h2>Room: <span id="roomNameDisplay"></span></h2>
+        <div class="header-buttons">
+          <button class="back-button" onclick="backToRoomSelection()">Back</button>
+          <button class="logout-button" onclick="logoutUser()">Logout</button>
+          <button class="mode-toggle" onclick="toggleDarkMode()">Toggle Mode</button>
+          <!-- Delete Room button, visible only to the room admin -->
+          <button id="deleteRoomBtn" class="delete-room-btn" onclick="deleteRoom()" style="display: none;">Delete Room</button>
+        </div>
+      </div>
+      <ul id="messages"></ul>
+      <div class="chat-input">
+        <button id="emojiBtn" onclick="toggleEmojiPicker()">😊</button>
+        <input id="messageInput" type="text" placeholder="Type a message..." />
+        <!-- Hidden file input for attachments -->
+        <input type="file" id="fileInput" style="display: none;" accept="image/*,video/*" onchange="uploadFile(this)" />
+        <button onclick="document.getElementById('fileInput').click()">📎</button>
+        <button onclick="sendMessage()">Send</button>
+      </div>
+      <!-- Emoji Picker -->
+      <div id="emojiPicker" style="display: none;">
+        <span onclick="addEmoji('😀')">😀</span>
+        <span onclick="addEmoji('😂')">😂</span>
+        <span onclick="addEmoji('😍')">😍</span>
+        <span onclick="addEmoji('😎')">😎</span>
+        <span onclick="addEmoji('👍')">👍</span>
+        <span onclick="addEmoji('🙏')">🙏</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JOIN ROOM CODE MODAL ===== -->
+  <div id="joinRoomModal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h3>DM with <span id="dmRecipientName"></span></h3>
-        <button class="close-btn" onclick="closeDmChatModal()">X</button>
-      </div>
-      <div id="dmMessagesContainer"></div>
-      <div class="dm-input-container">
-        <input type="text" id="dmInput" placeholder="Type a message...">
-        <button onclick="sendDmMessage()">Send</button>
-      </div>
+      <h2>Enter Room Code</h2>
+      <input type="text" id="joinRoomCodeInput" placeholder="Enter room code" />
+      <button onclick="submitJoinRoomCode()">Join Room</button>
     </div>
   </div>
 
@@ -208,166 +177,404 @@
   <script>
     const socket = io();
     let username = "";
-    let currentDMRoom = "";
-    let dmRecipient = "";
-    // Inbox notifications: key is room name, value is count.
-    let inboxNotifications = {};
+    let currentRoom = "";
+    let currentRoomCandidate = "";
+    let roomAdmin = ""; // Store the room creator's username
 
-    // On dashboard load, check session.
+    // Check session and load appropriate view on page load
     window.onload = function() {
-      fetch("/me")
-        .then(response => response.json())
-        .then(data => {
-          if (!data.loggedIn) {
-            window.location.href = "/";
-          } else {
-            username = data.user.username;
-            // Register the user for private messaging.
-            socket.emit("register user", { username });
-          }
-        })
-        .catch(err => {
-          console.error("Error checking session:", err);
-          window.location.href = "/";
-        });
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get("room");
+      // Check if a room is specified in the URL (for DM rooms or direct joining)
+      if (roomParam) {
+        // If room parameter exists, assume user is already logged in
+        // (You might also want to verify session here)
+        currentRoom = roomParam;
+        document.getElementById("authContainer").style.display = "none";
+        document.getElementById("roomContainer").style.display = "none";
+        document.getElementById("chatContainer").style.display = "flex";
+        document.getElementById("roomNameDisplay").textContent = currentRoom;
+        // Join the room (for DM rooms, no room code is needed)
+        socket.emit("join room", { roomName: currentRoom, code: "" });
+      } else {
+        // Otherwise, check session normally and display auth or room selection
+        fetch("/me")
+          .then(response => response.json())
+          .then(data => {
+            if (data.loggedIn) {
+              username = data.user.username;
+              document.getElementById("authContainer").style.display = "none";
+              document.getElementById("roomContainer").style.display = "block";
+              fetchRooms();
+            }
+          })
+          .catch(err => console.error("Error checking session:", err));
+      }
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        document.body.classList.add("dark-mode");
+      }
     };
 
-    // Search users using /search-users endpoint.
-    function searchUsers() {
-      const query = document.getElementById("userSearchInput").value.trim();
-      if (!query) {
-        alert("Please enter a search query.");
-        return;
+    // Typing indicator logic
+    let typing = false;
+    let typingTimeout;
+
+    document.getElementById("messageInput").addEventListener("input", function () {
+      if (!currentRoom) return;
+      if (!typing) {
+        typing = true;
+        console.log("Emitting typing event", { room: currentRoom, username });
+        socket.emit("typing", { room: currentRoom, username });
       }
-      fetch("/search-users?query=" + encodeURIComponent(query))
-        .then(response => response.json())
-        .then(data => {
-          const resultsContainer = document.getElementById("searchResults");
-          resultsContainer.innerHTML = "";
-          if (data.users && data.users.length > 0) {
-            data.users.forEach(user => {
-              const div = document.createElement("div");
-              div.className = "user";
-              div.innerHTML = `<strong>${user.username}</strong> (${user.full_name})
-                                <button onclick="openDmChatModal('${user.username}')">Message</button>`;
-              resultsContainer.appendChild(div);
-            });
-          } else {
-            resultsContainer.textContent = "No users found.";
-          }
-        })
-        .catch(error => console.error("Error searching users:", error));
-    }
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        typing = false;
+        console.log("Emitting stop typing event", { room: currentRoom, username });
+        socket.emit("stop typing", { room: currentRoom, username });
+      }, 1000);
+    });
 
-    // Generate a DM room name by sorting two usernames alphabetically.
-    function generateDMRoomName(user1, user2) {
-      const sorted = [user1, user2].sort();
-      return "dm-" + sorted.join("-");
-    }
+    socket.on("typing", (data) => {
+      console.log("Received typing event:", data);
+      showTypingIndicator(data.username);
+    });
 
-    // Open the DM chat modal and join the DM room.
-    function openDmChatModal(recipient) {
-      dmRecipient = recipient;
-      document.getElementById("dmRecipientName").textContent = recipient;
-      document.getElementById("dmMessagesContainer").innerHTML = "";
-      // Generate DM room name.
-      currentDMRoom = generateDMRoomName(username, recipient);
-      // Emit join event for DM room.
-      socket.emit("join room", { roomName: currentDMRoom, code: "" });
-      document.getElementById("dmChatModal").style.display = "flex";
-    }
+    socket.on("stop typing", (data) => {
+      console.log("Received stop typing event:", data);
+      hideTypingIndicator(data.username);
+    });
 
-    function closeDmChatModal() {
-      document.getElementById("dmChatModal").style.display = "none";
-      currentDMRoom = "";
-      document.getElementById("dmMessagesContainer").innerHTML = "";
-    }
-
-    // Send DM message from modal.
-    function sendDmMessage() {
-      const dmMessage = document.getElementById("dmInput").value.trim();
-      if (!dmMessage) {
-        alert("Please type a message.");
-        return;
+    function showTypingIndicator(user) {
+      let indicator = document.getElementById("typingIndicator");
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.id = "typingIndicator";
+        indicator.style.fontStyle = "italic";
+        indicator.style.margin = "5px";
+        indicator.style.color = "#555";
+        document.getElementById("messages").appendChild(indicator);
       }
-      // Emit chat message for the DM room.
-      socket.emit("chat message", { username, message: dmMessage, room: currentDMRoom });
-      // Optionally, display your own message immediately.
-      appendDmMessage(username, dmMessage, null, null, "local-" + new Date().getTime());
-      document.getElementById("dmInput").value = "";
+      indicator.textContent = user + " is typing...";
+      indicator.scrollIntoView({ behavior: "smooth", block: "end" });
     }
 
-    // Listen for incoming chat messages.
-    socket.on("chat message", (data) => {
-      // Check if the message belongs to a DM room.
-      if (data.room && data.room.startsWith("dm-")) {
-        // If the DM modal is open and it's the current DM room, append it.
-        if (currentDMRoom && data.room === currentDMRoom) {
-          appendDmMessage(data.username, data.message, data.media, data.mediaType, data.id);
-        } else {
-          // Otherwise, update the inbox notifications.
-          if (!inboxNotifications[data.room]) {
-            inboxNotifications[data.room] = 0;
-          }
-          inboxNotifications[data.room]++;
-          updateInboxUI();
-        }
-      } else {
-        // Handle public chat messages normally (likely in chat.html).
+    function hideTypingIndicator(user) {
+      const indicator = document.getElementById("typingIndicator");
+      if (indicator) {
+        indicator.textContent = "";
+      }
+    }
+
+    /* ----- SOCKET.IO EVENTS ----- */
+    socket.on("connect", () => console.log("Connected to server"));
+    socket.on("disconnect", () => console.log("Disconnected from server"));
+
+    socket.on("join error", errorMsg => {
+      alert(errorMsg);
+    });
+
+    socket.on("joined room", roomName => {
+      console.log("Successfully joined room:", roomName);
+      document.getElementById("joinRoomModal").style.display = "none";
+      document.getElementById("roomContainer").style.display = "none";
+      document.getElementById("chatContainer").style.display = "flex";
+      document.getElementById("roomNameDisplay").textContent = roomName;
+      document.getElementById("messages").innerHTML = "";
+      fetchRoomAdmin();
+    });
+
+    socket.on("chat history", messages => {
+      const messageList = document.getElementById("messages");
+      messageList.innerHTML = "";
+      messages.forEach(msg => {
+        appendMessage(msg.username, msg.message, msg.media, msg.mediaType, msg.id);
+      });
+    });
+
+    socket.on("chat message", data => {
+      appendMessage(data.username, data.message, data.media, data.mediaType, data.id);
+    });
+
+    socket.on("message deleted", data => {
+      const msgEl = document.querySelector(`[data-message-id="${data.messageId}"]`);
+      if (msgEl) msgEl.remove();
+    });
+
+    socket.on("room deleted", data => {
+      if (data.room === currentRoom) {
+        alert("This room has been deleted by the administrator.");
+        location.reload();
       }
     });
 
-    // Append a DM message in the DM modal.
-    function appendDmMessage(sender, text, media, mediaType, messageId) {
-      const container = document.getElementById("dmMessagesContainer");
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("dm-message");
-      msgDiv.setAttribute("data-message-id", messageId);
-      msgDiv.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      container.appendChild(msgDiv);
-      container.scrollTop = container.scrollHeight;
+    socket.on("admin error", errorMsg => {
+      alert(errorMsg);
+    });
+
+    // ----- LOGIN/SIGNUP FUNCTIONS -----
+    function showSignup() {
+      document.getElementById("loginCard").style.display = "none";
+      document.getElementById("signupCard").style.display = "block";
     }
 
-    // Update inbox UI with notification counts.
-    function updateInboxUI() {
-      const inboxList = document.getElementById("inboxList");
-      inboxList.innerHTML = "";
-      for (let room in inboxNotifications) {
-        const count = inboxNotifications[room];
-        const div = document.createElement("div");
-        div.className = "inbox-item";
-        div.innerHTML = `Room <strong>${room}</strong>: ${count} new message(s)
-                         <button onclick="openInboxRoom('${room}')">Open</button>`;
-        inboxList.appendChild(div);
-      }
+    function showLogin() {
+      document.getElementById("signupCard").style.display = "none";
+      document.getElementById("loginCard").style.display = "block";
     }
 
-    // Open a room from the inbox.
-    function openInboxRoom(room) {
-      // For DM rooms, open the DM modal.
-      if (room.startsWith("dm-")) {
-        // Parse the room to determine the recipient.
-        const parts = room.substring(3).split("-");
-        // The recipient is the one that is not you.
-        const recipient = parts.find(name => name !== username);
-        openDmChatModal(recipient);
+    function loginUser() {
+      const loginEmail = document.getElementById("loginEmail").value.trim();
+      const loginPassword = document.getElementById("loginPassword").value.trim();
+      if (loginEmail && loginPassword) {
+        fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginEmail, password: loginPassword })
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.message === "Login successful!") {
+              username = data.user.username;
+              // Redirect to dashboard after login
+              window.location.href = "dashboard.html";
+            } else {
+              alert(data.message);
+            }
+          })
+          .catch(error => console.error("Error:", error));
       } else {
-        // For public rooms, redirect to chat.html.
-        window.location.href = "chat.html?room=" + encodeURIComponent(room);
+        alert("Please fill in all fields.");
       }
-      // Remove notification from inbox for that room.
-      delete inboxNotifications[room];
-      updateInboxUI();
+    }
+
+    function registerUser() {
+      const fullName = document.getElementById("signupFullName").value.trim();
+      const email = document.getElementById("signupEmail").value.trim();
+      const usernameField = document.getElementById("signupUsername").value.trim();
+      const password = document.getElementById("signupPassword").value.trim();
+      if (fullName && email && usernameField && password) {
+        fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: fullName,
+            email: email,
+            username: usernameField,
+            password: password,
+          })
+        })
+          .then(response => response.json())
+          .then(data => {
+            alert(data.message);
+            if (data.message === "Registration successful!") {
+              showLogin();
+            }
+          })
+          .catch(error => console.error("Error:", error));
+      } else {
+        alert("Please fill in all fields.");
+      }
     }
 
     function logoutUser() {
-      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
+      fetch("/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
         .then(response => response.json())
         .then(data => {
           alert(data.message);
-          window.location.href = "/";
+          username = "";
+          currentRoom = "";
+          location.reload();
         })
         .catch(error => console.error("Logout error:", error));
+    }
+
+    // ----- ROOM SELECTION FUNCTIONS -----
+    function fetchRooms() {
+      fetch("/rooms")
+        .then(response => response.json())
+        .then(data => {
+          const roomList = document.getElementById("roomList");
+          roomList.innerHTML = "";
+          data.rooms.forEach(room => {
+            const li = document.createElement("li");
+            li.textContent = room;
+            li.className = "room-item";
+            li.onclick = () => joinRoom(room);
+            roomList.appendChild(li);
+          });
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    function createRoom() {
+      const newRoom = document.getElementById("newRoomInput").value.trim();
+      const roomCode = document.getElementById("newRoomCode").value.trim();
+      if (!newRoom) {
+        alert("Please enter a room name.");
+        return;
+      }
+      if (!roomCode) {
+        alert("Room code is required.");
+        return;
+      }
+      fetch("/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ room_name: newRoom, room_code: roomCode })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.message === "Room created successfully!") {
+            currentRoom = newRoom;
+            socket.emit("join room", { roomName: newRoom, code: roomCode });
+          } else {
+            alert(data.message);
+          }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
+    // When a user clicks a room in the list, show the modal to enter a room code.
+    function joinRoom(room) {
+      currentRoomCandidate = room;
+      document.getElementById("joinRoomCodeInput").value = "";
+      document.getElementById("joinRoomModal").style.display = "flex";
+    }
+
+    // Called when the user clicks "Join Room" in the modal.
+    function submitJoinRoomCode() {
+      const code = document.getElementById("joinRoomCodeInput").value.trim();
+      if (!code) {
+        alert("Room code is required.");
+        return;
+      }
+      currentRoom = currentRoomCandidate;
+      socket.emit("join room", { roomName: currentRoom, code: code });
+    }
+
+    function fetchRoomAdmin() {
+      fetch(`/roomAdmin?room=${encodeURIComponent(currentRoom)}`)
+        .then(response => response.json())
+        .then(data => {
+          roomAdmin = data.created_by;
+          console.log("Room admin:", roomAdmin);
+          if (username === roomAdmin) {
+            document.getElementById("deleteRoomBtn").style.display = "inline-block";
+          } else {
+            document.getElementById("deleteRoomBtn").style.display = "none";
+          }
+        })
+        .catch(err => console.error("Error fetching room admin:", err));
+    }
+
+    function deleteRoom() {
+      if (confirm("Are you sure you want to delete this room? This action cannot be undone.")) {
+        socket.emit("delete room", { room: currentRoom, username });
+      }
+    }
+
+    function backToRoomSelection() {
+      location.reload();
+    }
+
+    // ----- CHAT FUNCTIONS -----
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const message = input.value.trim();
+      if (message && currentRoom) {
+        socket.emit("chat message", { username, message, room: currentRoom });
+        input.value = "";
+      }
+    }
+
+    function appendMessage(sender, text, media, mediaType, messageId) {
+      const li = document.createElement("li");
+      li.classList.add("message");
+      li.setAttribute("data-message-id", messageId);
+      if (sender === username) {
+        li.classList.add("mine");
+      } else {
+        li.classList.add("theirs");
+      }
+      let content = `<div class="sender">${sender}</div>`;
+      if (text) {
+        content += `<div class="text">${text}</div>`;
+      }
+      if (media) {
+        if (mediaType === "image") {
+          content += `<div class="media"><img src="${media}" alt="Image" style="max-width:100%;"/></div>`;
+        } else if (mediaType === "video") {
+          content += `<div class="media"><video controls style="max-width:100%;"><source src="${media}"></video></div>`;
+        } else {
+          content += `<div class="media"><a href="${media}" target="_blank">Download File</a></div>`;
+        }
+      }
+      if (username === roomAdmin) {
+        content += `<button class="delete-btn" onclick="deleteMessage(${messageId})">Delete</button>`;
+      }
+      li.innerHTML = content;
+      const messages = document.getElementById("messages");
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function deleteMessage(messageId) {
+      if (confirm("Are you sure you want to delete this message?")) {
+        socket.emit("delete message", { room: currentRoom, messageId, username });
+      }
+    }
+
+    // ----- EMOJI PICKER FUNCTIONS -----
+    function toggleEmojiPicker() {
+      const picker = document.getElementById("emojiPicker");
+      picker.style.display = picker.style.display === "none" ? "block" : "none";
+    }
+
+    function addEmoji(emoji) {
+      const input = document.getElementById("messageInput");
+      input.value += emoji;
+      toggleEmojiPicker();
+    }
+
+    // ----- FILE UPLOAD FUNCTION -----
+    function uploadFile(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append("file", file);
+        fetch("/upload", {
+          method: "POST",
+          body: formData
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.fileUrl) {
+              const msgData = {
+                username,
+                message: "",
+                room: currentRoom,
+                media: data.fileUrl,
+                mediaType: data.mediaType
+              };
+              socket.emit("chat message", msgData);
+            }
+          })
+          .catch(err => console.error("File upload error:", err));
+      }
+    }
+
+    // ----- DARK/LIGHT MODE TOGGLE -----
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+      if (document.body.classList.contains("dark-mode")) {
+        localStorage.setItem("theme", "dark");
+      } else {
+        localStorage.setItem("theme", "light");
+      }
     }
   </script>
 </body>
