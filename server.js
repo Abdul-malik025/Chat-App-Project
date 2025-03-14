@@ -36,7 +36,13 @@ const sessionStore = new MySQLStore({}, db.promise());
 // Protect Static Files Middleware
 // ====================================================
 // Define a whitelist of public routes that are allowed without login.
-const publicWhitelist = ["/", "/index.html", "/login.html", "/forgot-password.html"];
+const publicWhitelist = [
+  "/",
+  "/index.html",
+  "/login.html",
+  "/forgot-password.html",
+  "/style.css",
+];
 // Middleware: for any request that is not whitelisted, check if user is logged in.
 app.use((req, res, next) => {
   // Using req.path ensures we ignore any query parameters.
@@ -92,8 +98,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file)
-    return res.status(400).json({ message: "No file uploaded." });
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
   const fileUrl = `/uploads/${req.file.filename}`;
   let mediaType = "";
   if (req.file.mimetype.startsWith("image/")) mediaType = "image";
@@ -131,13 +136,17 @@ app.post("/register", (req, res) => {
       }
       const query =
         "INSERT INTO users (username, password, full_name, email) VALUES (?, ?, ?, ?)";
-      db.query(query, [username, hashedPassword, full_name, email], (err, result) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ message: "Error registering user." });
+      db.query(
+        query,
+        [username, hashedPassword, full_name, email],
+        (err, result) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).json({ message: "Error registering user." });
+          }
+          return res.status(200).json({ message: "Registration successful!" });
         }
-        return res.status(200).json({ message: "Registration successful!" });
-      });
+      );
     });
   });
 });
@@ -146,7 +155,9 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   if (!email || !password)
-    return res.status(400).json({ message: "Email and password are required." });
+    return res
+      .status(400)
+      .json({ message: "Email and password are required." });
   const query = "SELECT * FROM users WHERE email = ?";
   db.query(query, [email], (err, results) => {
     if (err) {
@@ -159,9 +170,15 @@ app.post("/login", (req, res) => {
     bcrypt.compare(password, user.password, (err, match) => {
       if (err || !match)
         return res.status(401).json({ message: "Incorrect password." });
-      req.session.user = { username: user.username, full_name: user.full_name, email: user.email };
+      req.session.user = {
+        username: user.username,
+        full_name: user.full_name,
+        email: user.email,
+      };
       console.log("User logged in:", req.session.user);
-      return res.status(200).json({ message: "Login successful!", user: req.session.user });
+      return res
+        .status(200)
+        .json({ message: "Login successful!", user: req.session.user });
     });
   });
 });
@@ -195,7 +212,8 @@ app.get("/profile", (req, res) => {
     return res.status(401).json({ message: "User not logged in." });
   }
   const username = req.session.user.username;
-  const query = "SELECT username, full_name, email, profile_picture FROM users WHERE username = ?";
+  const query =
+    "SELECT username, full_name, email, profile_picture FROM users WHERE username = ?";
   db.query(query, [username], (err, results) => {
     if (err) {
       console.error("Error fetching profile:", err);
@@ -216,18 +234,25 @@ app.put("/profile", (req, res) => {
   const username = req.session.user.username;
   const { full_name, email, profile_picture } = req.body;
   if (!full_name || !email) {
-    return res.status(400).json({ message: "Full name and email are required." });
+    return res
+      .status(400)
+      .json({ message: "Full name and email are required." });
   }
-  const updateQuery = "UPDATE users SET full_name = ?, email = ?, profile_picture = ? WHERE username = ?";
-  db.query(updateQuery, [full_name, email, profile_picture || null, username], (err, result) => {
-    if (err) {
-      console.error("Error updating profile:", err);
-      return res.status(500).json({ message: "Error updating profile." });
+  const updateQuery =
+    "UPDATE users SET full_name = ?, email = ?, profile_picture = ? WHERE username = ?";
+  db.query(
+    updateQuery,
+    [full_name, email, profile_picture || null, username],
+    (err, result) => {
+      if (err) {
+        console.error("Error updating profile:", err);
+        return res.status(500).json({ message: "Error updating profile." });
+      }
+      req.session.user.full_name = full_name;
+      req.session.user.email = email;
+      return res.status(200).json({ message: "Profile updated successfully!" });
     }
-    req.session.user.full_name = full_name;
-    req.session.user.email = email;
-    return res.status(200).json({ message: "Profile updated successfully!" });
-  });
+  );
 });
 
 // ====================================================
@@ -255,7 +280,9 @@ app.post("/rooms", (req, res) => {
     return res.status(400).json({ message: "Room name is required." });
   const created_by = req.session?.user?.username;
   if (!created_by)
-    return res.status(401).json({ message: "You must be logged in to create a room." });
+    return res
+      .status(401)
+      .json({ message: "You must be logged in to create a room." });
   console.log("Creating room by user:", created_by);
   const checkUserQuery = "SELECT * FROM users WHERE username = ?";
   db.query(checkUserQuery, [created_by], (err, userResults) => {
@@ -265,16 +292,25 @@ app.post("/rooms", (req, res) => {
     }
     if (userResults.length === 0) {
       console.error(`User ${created_by} does not exist in users table.`);
-      return res.status(400).json({ message: "User does not exist. Please log in." });
+      return res
+        .status(400)
+        .json({ message: "User does not exist. Please log in." });
     }
-    const insertRoomQuery = "INSERT INTO rooms (room_name, created_by, room_code) VALUES (?, ?, ?)";
-    db.query(insertRoomQuery, [room_name, created_by, room_code || null], (err, result) => {
-      if (err) {
-        console.error("Error creating room:", err);
-        return res.status(500).json({ message: "Error creating room." });
+    const insertRoomQuery =
+      "INSERT INTO rooms (room_name, created_by, room_code) VALUES (?, ?, ?)";
+    db.query(
+      insertRoomQuery,
+      [room_name, created_by, room_code || null],
+      (err, result) => {
+        if (err) {
+          console.error("Error creating room:", err);
+          return res.status(500).json({ message: "Error creating room." });
+        }
+        res
+          .status(200)
+          .json({ message: "Room created successfully!", room_name });
       }
-      res.status(200).json({ message: "Room created successfully!", room_name });
-    });
+    );
   });
 });
 
@@ -314,13 +350,17 @@ app.get("/search-users", (req, res) => {
       AND username != ?
   `;
   const likeQuery = `%${queryParam}%`;
-  db.query(searchQuery, [likeQuery, likeQuery, likeQuery, currentUser], (err, results) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Database error." });
+  db.query(
+    searchQuery,
+    [likeQuery, likeQuery, likeQuery, currentUser],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Database error." });
+      }
+      return res.status(200).json({ users: results });
     }
-    return res.status(200).json({ users: results });
-  });
+  );
 });
 
 // ====================================================
@@ -332,17 +372,16 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: "jerry_2044@outlook.com",
-    pass: "ilovemymom12345"
+    pass: "ilovemymom12345",
   },
   tls: {
-    ciphers: "SSLv3"
-  }
+    ciphers: "SSLv3",
+  },
 });
 
 app.post("/reset-password-request", (req, res) => {
   const { email } = req.body;
-  if (!email)
-    return res.status(400).json({ message: "Email is required." });
+  if (!email) return res.status(400).json({ message: "Email is required." });
   const query = "SELECT * FROM users WHERE email = ?";
   db.query(query, [email], (err, results) => {
     if (err) {
@@ -354,7 +393,8 @@ app.post("/reset-password-request", (req, res) => {
     const user = results[0];
     const token = crypto.randomBytes(20).toString("hex");
     const expires = new Date(Date.now() + 3600000);
-    const updateQuery = "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?";
+    const updateQuery =
+      "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE email = ?";
     db.query(updateQuery, [token, expires, email], (err, result) => {
       if (err) {
         console.error("DB error:", err);
@@ -364,25 +404,26 @@ app.post("/reset-password-request", (req, res) => {
       const mailOptions = {
         from: '"ChatApp Support" <jerry_2044@outlook.com>',
         to: user.email || email,
-        subject: 'Password Reset Request',
+        subject: "Password Reset Request",
         text: `You have requested a password reset. Please click on the following link to reset your password: ${resetLink}. This link is valid for 1 hour.`,
         html: `<p>You have requested a password reset.</p>
                <p>Please click on the link below to reset your password:</p>
                <p><a href="${resetLink}">${resetLink}</a></p>
-               <p>This link is valid for 1 hour.</p>`
+               <p>This link is valid for 1 hour.</p>`,
       };
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-          console.error('Error sending email:', error);
+          console.error("Error sending email:", error);
           return res.status(500).json({ message: "Error sending email." });
         }
-        console.log('Password reset email sent:', info.response);
-        return res.status(200).json({ message: "Password reset email has been sent." });
+        console.log("Password reset email sent:", info.response);
+        return res
+          .status(200)
+          .json({ message: "Password reset email has been sent." });
       });
     });
   });
 });
-
 
 // ====================================================
 // SOCKET.IO HANDLING
@@ -429,7 +470,8 @@ io.on("connection", (socket) => {
       socket.join(roomName);
       console.log(`Socket ${socket.id} joined room: ${roomName}`);
       socket.emit("joined room", roomName);
-      const query = "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
+      const query =
+        "SELECT * FROM messages WHERE room = ? ORDER BY timestamp ASC";
       db.query(query, [roomName], (err, results) => {
         if (err) {
           console.error("Error fetching chat history for room:", err);
@@ -457,22 +499,38 @@ io.on("connection", (socket) => {
     const { username, message, room, media, mediaType } = data;
     if (!username || (!message && !media) || !room) return;
     if (media) {
-      const query = "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
-      db.query(query, [room, username, message || "", media, mediaType], (err, result) => {
-        if (err) {
-          console.error("Error saving media message:", err);
-          return;
+      const query =
+        "INSERT INTO messages (room, username, message, media, mediaType) VALUES (?, ?, ?, ?, ?)";
+      db.query(
+        query,
+        [room, username, message || "", media, mediaType],
+        (err, result) => {
+          if (err) {
+            console.error("Error saving media message:", err);
+            return;
+          }
+          io.to(room).emit("chat message", {
+            username,
+            message,
+            media,
+            mediaType,
+            id: result.insertId,
+          });
         }
-        io.to(room).emit("chat message", { username, message, media, mediaType, id: result.insertId });
-      });
+      );
     } else {
-      const query = "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
+      const query =
+        "INSERT INTO messages (room, username, message) VALUES (?, ?, ?)";
       db.query(query, [room, username, message], (err, result) => {
         if (err) {
           console.error("Error saving message:", err);
           return;
         }
-        io.to(room).emit("chat message", { username, message, id: result.insertId });
+        io.to(room).emit("chat message", {
+          username,
+          message,
+          id: result.insertId,
+        });
       });
     }
   });
@@ -489,7 +547,10 @@ io.on("connection", (socket) => {
       }
       if (results.length === 0) return;
       if (results[0].created_by !== username) {
-        socket.emit("admin error", "Only the room administrator can delete messages.");
+        socket.emit(
+          "admin error",
+          "Only the room administrator can delete messages."
+        );
         return;
       }
       const deleteQuery = "DELETE FROM messages WHERE id = ?";
@@ -515,20 +576,27 @@ io.on("connection", (socket) => {
       }
       if (results.length === 0) return;
       if (results[0].created_by !== username) {
-        socket.emit("admin error", "Only the room creator can delete this room.");
+        socket.emit(
+          "admin error",
+          "Only the room creator can delete this room."
+        );
         return;
       }
       db.query("DELETE FROM messages WHERE room = ?", [room], (err, result) => {
         if (err) {
           console.error("Error deleting messages in room:", err);
         }
-        db.query("DELETE FROM rooms WHERE room_name = ?", [room], (err, result) => {
-          if (err) {
-            console.error("Error deleting room:", err);
-            return;
+        db.query(
+          "DELETE FROM rooms WHERE room_name = ?",
+          [room],
+          (err, result) => {
+            if (err) {
+              console.error("Error deleting room:", err);
+              return;
+            }
+            io.to(room).emit("room deleted", { room });
           }
-          io.to(room).emit("room deleted", { room });
-        });
+        );
       });
     });
   });
