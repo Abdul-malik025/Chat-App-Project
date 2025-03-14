@@ -7,7 +7,74 @@
   <link rel="stylesheet" href="style.css" />
   <!-- Additional styling for the join room modal -->
   <style>
-    /* Modal overlay for entering room code when joining a room */
+    /* General Styles */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f7f7f7;
+    }
+    /* Auth & Dashboard */
+    .background, .container {
+      width: 100%;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    #authContainer h2, #dashboard-container h1, #dashboard-container h2 {
+      color: #333;
+    }
+    .auth-container, .dashboard-section {
+      margin-top: 20px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 25px;
+      background: #40b3ff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.3s;
+    }
+    .btn:hover {
+      background: #1d9bee;
+    }
+    /* Input Groups */
+    .input-group {
+      margin: 10px 0;
+      text-align: left;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    /* Room container & Chat container */
+    #roomContainer, #chatContainer {
+      display: none;
+    }
+    #roomContainer ul, #chatContainer ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #roomContainer li, #chatContainer li {
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+    /* Join Room Modal */
     #joinRoomModal {
       position: fixed;
       top: 0;
@@ -53,6 +120,185 @@
     #joinRoomModal .modal-content button:hover {
       background: #1d9bee;
     }
+    /* Chat Card */
+    .chat-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 10px;
+      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+    }
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .chat-input {
+      display: flex;
+      padding: 10px;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 5px 0 0 5px;
+    }
+    .chat-input button {
+      padding: 10px 15px;
+      background: #40b3ff;
+      color: #fff;
+      border: none;
+      border-radius: 0 5px 5px 0;
+      cursor: pointer;
+    }
+    /* Emoji Picker */
+    #emojiPicker {
+      display: none;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      position: absolute;
+      bottom: 70px;
+      left: 10px;
+      z-index: 100;
+    }
+    #emojiPicker span {
+      font-size: 24px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    /* Media Queries for Mobile Devices */
+    @media (max-width: 480px) {
+      /* Dashboard adjustments */
+      #dashboard-container {
+        max-width: 95%;
+        margin: 20px auto;
+        padding: 10px;
+      }
+      .dashboard-section {
+        padding: 10px;
+        margin: 10px 0;
+      }
+      .btn {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+      .input-group input, 
+      #userSearchInput {
+        font-size: 14px;
+        padding: 8px;
+      }
+      #joinRoomModal .modal-content {
+        width: 90%;
+        max-width: 260px;
+        padding: 15px;
+      }
+      #joinRoomModal .modal-content h2 {
+        font-size: 16px;
+      }
+      /* Chat Card adjustments */
+      .chat-card {
+        margin: 10px;
+        height: 80vh;
+      }
+      .chat-header h2 {
+        font-size: 16px;
+      }
+      #messages {
+        font-size: 14px;
+        padding: 8px;
+      }
+      .chat-input input {
+        padding: 8px;
+        font-size: 14px;
+      }
+      .chat-input button {
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+      #emojiPicker span {
+        font-size: 20px;
+        margin: 3px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      /* Dashboard and Auth screens */
+      #authContainer, #dashboard-container, #roomContainer, #chatContainer {
+        max-width: 95%;
+        margin: 10px auto;
+        padding: 10px;
+      }
+      
+      /* Input adjustments */
+      .input-group input,
+      #userSearchInput,
+      #newRoomInput,
+      #newRoomCode,
+      #joinRoomCodeInput,
+      #messageInput {
+        font-size: 14px;
+        padding: 8px;
+      }
+      
+      /* Button adjustments */
+      .btn, button {
+        padding: 8px 15px;
+        font-size: 14px;
+      }
+      
+      /* Modal adjustments */
+      #joinRoomModal .modal-content {
+        width: 90%;
+        max-width: 260px;
+        padding: 15px;
+      }
+      #joinRoomModal .modal-content h2 {
+        font-size: 16px;
+      }
+      
+      /* Chat container adjustments */
+      .chat-card {
+        margin: 5px;
+        height: 80vh;
+      }
+      #chat-header h2 {
+        font-size: 16px;
+      }
+      #messages {
+        font-size: 14px;
+        padding: 8px;
+      }
+      .chat-input input {
+        font-size: 14px;
+        padding: 8px;
+      }
+      .chat-input button {
+        font-size: 14px;
+        padding: 8px 12px;
+      }
+      
+      /* Emoji picker */
+      #emojiPicker span {
+        font-size: 20px;
+        margin: 3px;
+      }
+    }
+    
   </style>
 </head>
 <body>
@@ -200,8 +446,6 @@
       }
     };
 
-
-
     /* ----- SOCKET.IO EVENTS ----- */
     socket.on("connect", () => console.log("Connected to server"));
     socket.on("disconnect", () => console.log("Disconnected from server"));
@@ -275,8 +519,6 @@
       });
     }
     
-   
-    
     // Listen for "typing" event from the server
     socket.on("typing", (data) => {
       console.log("Received typing event:", data);
@@ -295,14 +537,12 @@
       if (!indicator) {
         indicator = document.createElement("div");
         indicator.id = "typingIndicator";
-        // Optional: style the indicator (adjust as needed)
         indicator.style.fontStyle = "italic";
         indicator.style.margin = "5px";
         indicator.style.color = "#555";
         document.getElementById("messages").appendChild(indicator);
       }
       indicator.textContent = user + " is typing...";
-      // Optionally, scroll into view
       indicator.scrollIntoView({ behavior: "smooth", block: "end" });
     }
     
@@ -381,10 +621,7 @@
     }
 
     function logoutUser() {
-      fetch("/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      })
+      fetch("/logout", { method: "POST", headers: { "Content-Type": "application/json" } })
         .then(response => response.json())
         .then(data => {
           alert(data.message);
